@@ -1,28 +1,18 @@
 "use client"
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ThemeProvider as NextThemesProvider } from 'next-themes'
-import { useState, ReactNode } from 'react'
+import { useState } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { getQueryClient } from '@/lib/query-client'
 
-export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000,
-      },
-    },
-  }))
+export function Providers({ children }: { children: React.ReactNode }) {
+  // Garantimos que o cliente é criado apenas uma vez
+  const [queryClient] = useState(() => getQueryClient())
 
   return (
     <QueryClientProvider client={queryClient}>
-      <NextThemesProvider 
-        attribute="class" 
-        defaultTheme="system" 
-        enableSystem 
-        disableTransitionOnChange
-      >
-        {children}
-      </NextThemesProvider>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   )
 }
