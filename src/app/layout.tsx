@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "@/styles/globals.css";
 import { Providers } from "@/providers/providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Syngate - Controle de Acesso",
-  description: "Sistema inteligente de controle de acesso acadêmico",
+  title: "Syngate Senac",
+  description: "Sistema de Controle de Acesso",
 };
 
 export default function RootLayout({
@@ -19,9 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-br" suppressHydrationWarning>
-      <body className={`${geistSans.variable} antialiased`}>
-        <Providers>{children}</Providers>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className="antialiased">
+        <Providers>
+          {children}
+          <Toaster richColors position="top-right" /> 
+        </Providers>
       </body>
     </html>
   );
