@@ -1,13 +1,3 @@
-import type { Config } from "tailwindcss";
-
-export default {
-  content: [
-    "./src/app/**/*.{ts,tsx}",
-    "./src/components/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [require("tailwindcss-animate")],
-} satisfies Config;
+// Tailwind v4: toda a configuração vai em src/styles/globals.css via @theme.
+// Este arquivo existe apenas para satisfazer ferramentas que procuram por ele.
+export default {};

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 @theme {
   /* Cores do Sistema (Estilo Senac/Corporativo) */
@@ -8,12 +9,16 @@
   --color-card: #ffffff;
   --color-card-foreground: #0f172a;
 
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+
   /* Azul Senac */
-  --color-primary: #004a99; 
+  --color-primary: #004a99;
   --color-primary-foreground: #f8fafc;
 
-  --color-secondary: #f1f5f9;
-  --color-secondary-foreground: #0f172a;
+  /* Laranja Senac */
+  --color-secondary: #f47920;
+  --color-secondary-foreground: #ffffff;
 
   --color-muted: #f1f5f9;
   --color-muted-foreground: #64748b;
@@ -26,9 +31,12 @@
 
   --color-border: #e2e8f0;
   --color-input: #e2e8f0;
-  --color-ring: #0f172a;
+  --color-ring: #004a99;
 
   --radius: 0.5rem;
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
 }
 
 @layer base {
