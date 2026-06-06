@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { 
-  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X
+  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, Clock3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -23,12 +23,13 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const menuItems = [
-    { name: 'Painel',        href: '/dashboard',               icon: Activity,  roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
-    { name: 'Usuários',      href: '/dashboard/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Salas',         href: '/dashboard/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos',  href: '/dashboard/devices',  icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
-    { name: 'Relatórios',    href: '/dashboard/reports',    icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Usuários', href: '/usuarios', icon: Users, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Turnos', href: '/turnos', icon: Clock3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Salas', href: '/salas', icon: DoorOpen, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Dispositivos', href: '/dashboard/dispositivos', icon: Network, roles: ['GESTOR'], group: 'Administração' },
+    { name: 'Relatórios', href: '/dashboard/relatorios', icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'], group: 'Administração' },
   ];
 
   const visibleItems = menuItems.filter(item => papel && item.roles.includes(papel));
