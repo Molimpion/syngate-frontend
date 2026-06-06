@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { 
-  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, Clock3
+  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, Clock3, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -24,6 +24,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
   const menuItems = [
     { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Perfil', href: '/perfil', icon: User, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
     { name: 'Usuários', href: '/usuarios', icon: Users, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Turnos', href: '/turnos', icon: Clock3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Salas', href: '/salas', icon: DoorOpen, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
