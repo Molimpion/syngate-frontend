@@ -1,68 +1,69 @@
+// src/components/layout/header.tsx
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { logoutAction } from '@/actions/auth';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Moon, Sun } from 'lucide-react';
+import { LogOut, User, Menu, Moon, Sun } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { session } = useSession();
-  const { setTheme, theme } = useTheme();
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    setIsDarkMode(isDark);
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-card px-6 shadow-sm">
-      <div className="flex items-center gap-4">
-        {/* Espaço para um botão de menu mobile no futuro */}
-      </div>
+    <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between md:justify-end px-4 md:px-6 shadow-sm shrink-0">
+      
+      <button onClick={onMenuClick} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md">
+        <Menu className="h-6 w-6" />
+      </button>
 
-      <div className="flex items-center gap-4">
-        {/* Botão de Dark Mode */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="rounded-full"
-        >
-          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Alternar tema</span>
-        </Button>
+      <div className="flex items-center gap-4 ml-auto">
+        <button onClick={toggleTheme} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+          {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
 
-        {/* Dropdown do Perfil */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-9 w-9 border-2 border-primary">
-                <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                  {session?.papel?.charAt(0) || <User className="h-4 w-4" />}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
+          <DropdownMenuTrigger className="focus:outline-none">
+            <div className="h-10 w-10 rounded-full border-2 border-[#f47920] bg-white flex items-center justify-center text-[#004a99] font-bold text-sm shadow-sm hover:bg-slate-50 transition-all cursor-pointer">
+              {session?.nome ? getInitials(session.nome) : <User className="h-5 w-5" />}
+            </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
+          
+          <DropdownMenuContent align="end" className="w-56 mt-2 border-slate-200">
+            <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Minha Conta</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  Nível de Acesso: <span className="font-bold text-secondary">{session?.papel || 'Carregando...'}</span>
-                </p>
+                <p className="text-sm font-medium text-slate-900">{session?.nome || 'Usuário'}</p>
+                <p className="text-xs text-slate-500">Nível: {session?.papel}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logoutAction()} className="text-destructive cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair do Sistema</span>
+            <DropdownMenuItem onClick={() => logoutAction()} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer font-medium">
+              <LogOut className="mr-2 h-4 w-4" /> Sair do Sistema
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

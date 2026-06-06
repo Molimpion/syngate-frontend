@@ -1,5 +1,4 @@
-'use client';
-
+// src/hooks/useSocket.ts
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -7,10 +6,16 @@ export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    // Conecta ao servidor definido no seu .env
-    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
-      withCredentials: true,
+    const url = process.env.NEXT_PUBLIC_SOCKET_URL;
+    
+    if (!url) {
+      console.warn("⚠️ NEXT_PUBLIC_SOCKET_URL não definida. WebSocket offline.");
+      return;
+    }
+
+    const socketInstance = io(url, {
       transports: ['websocket'],
+      autoConnect: true,
     });
 
     setSocket(socketInstance);
@@ -20,5 +25,5 @@ export function useSocket() {
     };
   }, []);
 
-  return socket;
+  return { socket };
 }

@@ -7,19 +7,27 @@ import { loginAction } from '@/actions/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Puxando apenas o Label cru do Shadcn
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { ShieldCheck, Layers, Activity } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
-  senha: z.string().min(6, 'Senha curta'),
+  senha: z.string().min(6, 'Senha muito curta'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+const features = [
+  { icon: ShieldCheck, label: 'Gestão Segura',      desc: 'Controle de acessos rigoroso e auditável.' },
+  { icon: Layers,      label: 'Ambiente Integrado', desc: 'Tudo o que você precisa em uma única tela.' },
+  { icon: Activity,    label: 'Alta Performance',   desc: 'Relatórios e métricas em tempo real.' },
+];
+
 export default function LoginPage() {
   const router = useRouter();
-  
+
   const {
     register,
     handleSubmit,
@@ -36,133 +44,182 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-white lg:grid lg:grid-cols-2">
-      
-      {/* ========================================================
-          COLUNA ESQUERDA: Área Institucional com Degradê
-          ======================================================== */}
-      <div className="relative hidden w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-[#f47920] from-20% via-[#004a99] via-60% to-[#003d7d] p-12 lg:flex">
-        
-        {/* Efeitos de Luz sutis para dar profundidade ao degradê */}
-        <div className="pointer-events-none absolute -left-20 -top-20 h-96 w-96 rounded-full bg-white/20 blur-[100px]" />
-        <div className="pointer-events-none absolute -bottom-20 -right-20 h-[30rem] w-[30rem] rounded-full bg-black/20 blur-[120px]" />
+    <div className="relative flex h-screen w-full overflow-hidden bg-white">
 
-        {/* Conteúdo Institucional */}
-        <div className="relative z-10 mt-8">
-          <h2 className="text-4xl font-bold tracking-tight text-white">Syngate.</h2>
-          <p className="mt-4 max-w-md text-lg text-blue-50/90">
-            Plataforma centralizada para gestão acadêmica e controle de acessos da CPA.
-          </p>
+      {/* ── PAINEL ESQUERDO ───────────────────────────────────────── */}
+      <div className="relative hidden w-[52%] shrink-0 lg:block">
 
-          {/* Tópicos */}
-          <div className="mt-16 space-y-8">
-            
-            <div className="flex items-center gap-5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/10 text-white shadow-sm backdrop-blur-sm">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              </div>
-              <div>
-                <h4 className="font-semibold text-white">Gestão Segura</h4>
-                <p className="text-sm text-blue-100/80">Controle de acessos rigoroso e auditável.</p>
-              </div>
+        {/* Fundo azul escuro com degradê */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#003d7d] to-[#002a5a]" />
+
+        {/* Bloco laranja menor com degradê para transparente */}
+        <motion.div
+          initial={{ x: -80, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute left-0 top-0 h-full w-[65%]"
+          style={{
+            clipPath: 'polygon(0 0, 100% 0, 78% 100%, 0 100%)',
+            background: 'linear-gradient(100deg, #f47920 0%, #e8621a 08%, transparent 76%)',
+          }}
+        />
+
+        {/* Grade de pontos decorativa */}
+        <div
+          className="absolute inset-0 opacity-[0.10]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+
+        {/* Conteúdo */}
+        <div className="relative z-10 flex h-full flex-col justify-between p-14">
+
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <span className="text-2xl font-bold tracking-tight text-white">Syngate.</span>
+          </motion.div>
+
+          <div>
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="text-5xl font-bold leading-tight tracking-tight text-white"
+            >
+              Controle de<br />
+              <span className="opacity-100">acesso</span><br />
+              inteligente.
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.65, duration: 0.6 }}
+              className="mt-5 max-w-xs text-base text-white/85 leading-relaxed"
+            >
+              Plataforma centralizada para gestão acadêmica e controle de acesso físico via IoT.
+            </motion.p>
+
+            <div className="mt-10 space-y-5">
+              {features.map(({ icon: Icon, label, desc }, i) => (
+                <motion.div
+                  key={label}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.75 + i * 0.12, duration: 0.5 }}
+                  className="flex items-start gap-4"
+                >
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                    <Icon size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{label}</p>
+                    <p className="text-xs text-white/75 leading-relaxed">{desc}</p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
-
-            <div className="flex items-center gap-5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/10 text-white shadow-sm backdrop-blur-sm">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-              </div>
-              <div>
-                <h4 className="font-semibold text-white">Ambiente Integrado</h4>
-                <p className="text-sm text-blue-100/80">Tudo o que você precisa em uma única tela.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/10 text-white shadow-sm backdrop-blur-sm">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              </div>
-              <div>
-                <h4 className="font-semibold text-white">Alta Performance</h4>
-                <p className="text-sm text-blue-100/80">Relatórios gerenciais e métricas em tempo real.</p>
-              </div>
-            </div>
-
           </div>
-        </div>
 
-        {/* Rodapé da coluna */}
-        <div className="relative z-10 text-sm font-medium text-blue-200/50">
-          © 2026 Senac Pernambuco. Todos os direitos reservados.
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1, duration: 0.5 }}
+            className="text-xs text-white/60"
+          >
+            © 2026 Senac Pernambuco. Todos os direitos reservados.
+          </motion.p>
         </div>
       </div>
 
-      {/* ========================================================
-          COLUNA DIREITA: Área de Login
-          ======================================================== */}
-      <div className="flex items-center justify-center p-8">
-        <div className="w-full max-w-[380px] space-y-8">
-          
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Entrar</h1>
-            <p className="mt-2 text-sm text-slate-500">Bem-vindo(a) de volta. Insira seus dados.</p>
+      {/* ── PAINEL DIREITO ────────────────────────────────────────── */}
+      <div className="flex flex-1 items-center justify-center bg-white px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-[360px]"
+        >
+          <div className="mb-9">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#f47920]">
+              Portal de acesso
+            </p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+              Entrar
+            </h2>
+            <p className="mt-1.5 text-sm text-slate-400">
+              Bem-vindo(a) de volta. Insira seus dados.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            
-            <div className="space-y-2">
-              <Label 
-                htmlFor="email" 
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="email"
                 className="text-[11px] font-bold uppercase tracking-wider text-slate-900"
               >
                 E-mail
               </Label>
-              <Input 
+              <Input
                 id="email"
                 type="email"
-                className="h-12 rounded-md border border-slate-300 !bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-[#004a99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0" 
-                placeholder="Usuario" 
+                placeholder="seu@email.com"
+                className="h-12 rounded-lg border border-slate-200 !bg-white text-slate-900 placeholder:text-slate-400 transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
                 {...register('email')}
               />
               {errors.email && (
-                <p className="text-xs font-medium text-red-500">{errors.email.message}</p>
+                <p className="text-xs text-red-500">{errors.email.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label 
-                htmlFor="senha" 
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="senha"
                 className="text-[11px] font-bold uppercase tracking-wider text-slate-900"
               >
                 Senha
               </Label>
-              <Input 
+              <Input
                 id="senha"
-                type="password" 
-                className="h-12 rounded-md border border-slate-300 !bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-[#004a99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0" 
-                placeholder="••••••••" 
+                type="password"
+                placeholder="••••••••"
+                className="h-12 rounded-lg border border-slate-200 !bg-white text-slate-900 placeholder:text-slate-400 transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
                 {...register('senha')}
               />
               {errors.senha && (
-                <p className="text-xs font-medium text-red-500">{errors.senha.message}</p>
+                <p className="text-xs text-red-500">{errors.senha.message}</p>
               )}
             </div>
-            
-            <Button 
+
+            <Button
               type="submit"
-              className="mt-2 h-12 w-full rounded-md bg-[#f47920] font-bold text-white transition-all hover:bg-[#d96719]"
               disabled={isSubmitting}
+              className="mt-2 h-12 w-full rounded-lg bg-[#004a99] text-sm font-bold text-white transition-all hover:bg-[#003d7d] active:scale-[0.98]"
             >
               {isSubmitting ? 'Verificando...' : 'Acessar Sistema'}
             </Button>
+
           </form>
 
-          <div className="text-center">
-            <button className="text-sm font-medium text-slate-900 transition-colors hover:text-[#004a99] hover:underline">
+          <div className="mt-6 text-center">
+            <button className="text-sm text-slate-400 transition-colors hover:text-[#f47920]">
               Problemas com o acesso?
             </button>
           </div>
 
-        </div>
+          <div className="mt-10 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-[10px] uppercase tracking-widest text-slate-300">Senac PE · 2026</span>
+            <div className="h-px flex-1 bg-slate-100" />
+          </div>
+
+        </motion.div>
       </div>
 
     </div>
