@@ -1,12 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { 
-  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X 
+  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, ChevronLeft 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -17,6 +19,9 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const { session } = useSession();
   const papel = session?.papel;
+  
+  // Estado que controla se a sidebar está expandida ou recolhida
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const menuItems = [
     { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
@@ -31,30 +36,69 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
   return (
     <aside 
+      // Adicionamos os eventos de mouse aqui
+      onMouseEnter={() => setIsCollapsed(false)}
+      onMouseLeave={() => setIsCollapsed(true)}
       className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 flex-col bg-gradient-to-b from-[#004a99] to-[#002f63] text-white transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex shrink-0",
-        isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 flex-col bg-gradient-to-b from-[#003d7d] to-[#002a5a] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-white/5",
+        isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
+        !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
       )}
     >
-      {/* Branding */}
-      <div className="flex h-16 items-center justify-between px-6 border-b border-white/10 shrink-0">
-        <span className="text-xl font-bold tracking-widest text-white/90">SYNGATE</span>
-        <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-blue-200 hover:text-white p-1">
+      {/* ── ELEMENTOS DE DESIGN EXCLUSIVOS ── */}
+      <div 
+        className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
+        style={{
+         clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
+          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 08%, transparent 80%)',
+          boxShadow: 'inset 0 0 20px rgba(244,121,32,0.5)'
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-[0.05] pointer-events-none z-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+
+      {/* ── CONTEÚDO ── */}
+      <div className={cn(
+        "relative z-10 flex h-20 items-center border-b border-white/10 shrink-0 bg-transparent transition-all duration-300",
+        isCollapsed ? "justify-center px-0" : "justify-between px-6"
+      )}>
+        <span className={cn(
+          "font-bold tracking-tight text-white transition-all duration-300 overflow-hidden whitespace-nowrap",
+          isCollapsed ? "text-2xl" : "text-xl"
+        )}>
+          {isCollapsed ? "S" : "Syngate"}
+          <span className="text-[#f47920]">.</span>
+        </span>
+        
+        {/* O botão manual de fechar continua funcionando para mobile */}
+        <button 
+          onClick={() => setIsMobileOpen(false)} 
+          className="md:hidden text-white/70 hover:text-white p-1 transition-colors rounded-md hover:bg-white/5"
+        >
           <X className="h-6 w-6" />
         </button>
       </div>
       
-      <nav className="flex-1 p-4 space-y-8 overflow-y-auto">
+      <nav className="relative z-10 flex-1 py-6 space-y-7 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
         {['Menu', 'Administração'].map(groupName => {
           const items = visibleItems.filter(i => i.group === groupName);
           if (items.length === 0) return null;
 
           return (
-            <div key={groupName}>
-              <p className="px-3 text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-3 opacity-70">
-                {groupName}
+            <div key={groupName} className="space-y-2 px-3">
+              <p className={cn(
+                "text-[10px] font-bold text-white/40 uppercase tracking-widest transition-all duration-300",
+                isCollapsed ? "text-center" : "px-3"
+              )}>
+                {isCollapsed ? "•••" : groupName}
               </p>
-              <div className="space-y-1.5">
+              
+              <div className="space-y-1">
                 {items.map((item) => {
                   const isActive = pathname === item.href;
                   return (
@@ -62,20 +106,35 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
                       key={item.href}
                       href={item.href}
                       onClick={() => setIsMobileOpen(false)}
-                      className={cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out",
-                        isActive 
-                          ? "bg-white/10 text-white border-l-4 border-[#f47920] shadow-[0_0_15px_rgba(244,121,32,0.3)]" 
-                          : "text-blue-100 hover:bg-white/10 hover:text-white hover:translate-x-2"
-                      )}
+                      className="block relative"
                     >
-                      <item.icon 
+                      <motion.div
+                        whileHover={{ x: isCollapsed ? 0 : 4 }}
+                        whileTap={{ scale: 0.95 }}
                         className={cn(
-                          "h-5 w-5 transition-colors duration-300", 
-                          isActive ? "text-[#f47920]" : "text-blue-300 group-hover:text-[#f47920]"
-                        )} 
-                      />
-                      {item.name}
+                          "group flex items-center rounded-lg text-sm font-medium transition-colors relative z-10 overflow-hidden",
+                          isCollapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5 w-full",
+                          isActive 
+                            ? "text-white font-semibold" 
+                            : "text-white/70 hover:text-white hover:bg-white/5"
+                        )}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeSidebarTab"
+                            className={cn("absolute inset-0 bg-white/10", isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]")}
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                          />
+                        )}
+                        <item.icon className={cn("h-[18px] w-[18px] relative z-10 shrink-0", isActive ? "text-[#f47920]" : "text-white/40")} />
+                        <span className={cn(
+                          "relative z-10 tracking-wide whitespace-nowrap overflow-hidden transition-all duration-300",
+                          isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
+                        )}>
+                          {item.name}
+                        </span>
+                      </motion.div>
                     </Link>
                   );
                 })}
@@ -84,6 +143,12 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           );
         })}
       </nav>
+
+      <div className="relative z-10 p-4 text-center mt-auto pb-6">
+        <p className="text-[10px] text-white/80 tracking-widest uppercase font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
+          {isCollapsed ? "PE" : "Senac PE · 2026"}
+        </p>
+      </div>
     </aside>
   );
 }
