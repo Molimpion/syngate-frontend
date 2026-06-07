@@ -1,67 +1,122 @@
-'use client';
+"use client";
 
-import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { DownloadCloud } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { reportsService } from '@/services/reports.service';
-import { ReportsFilter } from '@/components/reports/ReportsFilter';
-import { ReportsTable } from '@/components/reports/ReportsTable';
-import { toast } from 'sonner';
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Download, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ReportsFilter } from "@/components/reports/ReportsFilter";
+import { ReportsTable } from "@/components/reports/ReportsTable";
+import { reportsService } from "@/services/reports.service";
+import { useSession } from "@/hooks/useSession";
+import { ReportFilters } from "@/types";
 
 function ReportsContent() {
   const searchParams = useSearchParams();
-  const [isExporting, setIsExporting] = useState(false);
+  const { session, isLoading: isSessionLoading } = useSession();
 
-  const filters = {
-    dataInicio:    searchParams.get('dataInicio')    || undefined,
-    dataFim:       searchParams.get('dataFim')       || undefined,
-    status:        searchParams.get('status')        || undefined,
-    usuarioId:     searchParams.get('usuarioId')     || undefined,
-    dispositivoId: searchParams.get('dispositivoId') || undefined,
+  const filters: ReportFilters = {
+    dataInicio: searchParams.get("dataInicio") || undefined,
+    dataFim: searchParams.get("dataFim") || undefined,
+    status: searchParams.get("status") || undefined,
+    usuarioId: searchParams.get("usuarioId") || undefined,
+    dispositivoId: searchParams.get("dispositivoId") || undefined,
   };
 
-  const { data, isLoading } = useQuery({
-    // filtros completos no queryKey — recarrega ao mudar qualquer filtro
-    queryKey: ['reports', filters],
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["reports", "dashboard", filters],
     queryFn: () => reportsService.getDashboard(filters),
-    staleTime: 5 * 60 * 1000, // 5 min — alinhado com TTL do Redis do backend
+    staleTime: 5 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 
-  const handleExport = async () => {
-    setIsExporting(true);
-    toast.info('Iniciando download do CSV...');
+  const canAccess =
+    session?.papel === "GESTOR" || session?.papel === "COORDENADOR";
+
+  if (isSessionLoading) {
+    return (
+      <div className="p-6 text-muted-foreground">Carregando sessão...</div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-6">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Acesso restrito</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground">
+            Seu perfil não possui permissão para acessar os relatórios.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleExportCSV = async () => {
     try {
       await reportsService.exportCSV(filters);
-      toast.success('Download concluído!');
     } catch {
-      toast.error('Erro ao exportar arquivo.');
-    } finally {
-      setIsExporting(false);
+      toast.error("Não foi possível exportar o CSV.");
     }
   };
 
+  const logs = data?.data?.detalhes ?? [];
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Relatórios e Auditoria</h1>
+    <div className="p-6 md:p-8">
+      {/* Cabeçalho */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Relatórios de Acesso
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Filtre e exporte os logs de acesso registrados pelo sistema.
+          </p>
+        </div>
         <Button
-          onClick={handleExport}
-          disabled={isExporting || isLoading || !data?.data?.detalhes?.length}
-          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+          onClick={handleExportCSV}
+          className="bg-[#f47920] hover:bg-[#e8621a] text-white"
         >
-          <DownloadCloud className="h-4 w-4 mr-2" />
-          {isExporting ? 'Gerando...' : 'Exportar CSV'}
+          <Download className="h-4 w-4 mr-2" />
+          Exportar CSV
         </Button>
       </div>
 
       <ReportsFilter />
 
+      {data?.data?.resumo && (
+        <div className="mb-4 flex flex-wrap gap-3">
+          <span className="text-sm text-muted-foreground">
+            Total:{" "}
+            <strong className="text-foreground">
+              {data.data.resumo.totalAcessos}
+            </strong>{" "}
+            acessos
+          </span>
+          {data.data.resumo.porStatus.map((s) => (
+            <span key={s.status} className="text-sm text-muted-foreground">
+              {s.status}:{" "}
+              <strong className="text-foreground">{s._count}</strong>
+            </span>
+          ))}
+        </div>
+      )}
       {isLoading ? (
-        <div className="text-center py-10 text-muted-foreground">Carregando logs...</div>
+        <div className="flex items-center gap-2 text-muted-foreground py-12 justify-center">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Carregando registros...</span>
+        </div>
+      ) : isError ? (
+        <p className="text-sm text-destructive py-6">
+          Erro ao carregar os relatórios.
+        </p>
       ) : (
-        <ReportsTable logs={data?.data?.detalhes || []} />
+        <ReportsTable logs={logs} />
       )}
     </div>
   );
@@ -69,7 +124,9 @@ function ReportsContent() {
 
 export default function ReportsPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-muted-foreground">Carregando interface...</div>}>
+    <Suspense
+      fallback={<div className="p-6 text-muted-foreground">Carregando...</div>}
+    >
       <ReportsContent />
     </Suspense>
   );

@@ -37,6 +37,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  --color-sidebar: #1e3a6e;
+  --color-sidebar-border: #2a5298;
 }
 
 @layer base {
@@ -49,6 +53,16 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh;
+  }
+
+  /* ── Transição suave na troca de tema ─────────────────────── */
+  *,
+  *::before,
+  *::after {
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
   }
 
   /* ── Dark Mode ────────────────────────────────────────────────
@@ -85,5 +99,9 @@
     --color-border: #30363d;
     --color-input: #21262d;
     --color-ring: #1a6fd4;
+
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    --color-sidebar: #0d1f3c;
+    --color-sidebar-border: #1a3a6b;
   }
 }

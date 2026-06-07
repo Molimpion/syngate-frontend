@@ -24,11 +24,11 @@ export function ReportsFilter() {
   const [dispositivos, setDispositivos] = useState<Device[]>([]);
 
   useEffect(() => {
-    apiFetch<{ data: UsuarioBasico[] }>('/users?limit=200')
+    apiFetch<{ data: UsuarioBasico[] }>('/api/usuarios?limit=200')
       .then((res) => setUsuarios(res.data))
       .catch(() => {});
 
-    apiFetch<{ data: Device[] }>('/devices')
+    apiFetch<{ data: Device[] }>('/api/devices')
       .then((res) => setDispositivos(res.data))
       .catch(() => {});
   }, []);
@@ -37,11 +37,14 @@ export function ReportsFilter() {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    // Reseta para página 1 ao mudar filtro
+    params.delete('page');
     router.push(`?${params.toString()}`);
   };
 
   const clearFilters = () => {
-    router.push('/dashboard/reports');
+    // Rota correta sem o prefixo /dashboard
+    router.push('/reports');
   };
 
   return (
