@@ -47,3 +47,42 @@ export interface AccessLog {
   usuarioNome?: string;
   salaNome?: string;
 }
+
+export interface ReportFilters {
+  dataInicio?: string;
+  dataFim?: string;
+  usuarioId?: string;
+  dispositivoId?: string;
+  status?: string;
+}
+
+export interface AccessLogDetail {
+  id: string;
+  dataHora: string;
+  status: 'CONCEDIDO' | 'NEGADO';
+  finalidade: string;
+  direcao: 'ENTRADA' | 'SAIDA';
+  motivo?: string;
+  uidCartao: string;
+  usuario?: {
+    nome: string;
+    matricula: string;
+    papel: string;
+  };
+  dispositivo: {
+    nome: string;
+    sala: {
+      nome: string;
+      bloco?: string;
+    };
+  };
+}
+
+export interface DashboardReportResponse {
+  resumo: {
+    totalAcessos: number;
+    porStatus: { status: string; _count: number }[];
+    porDirecao: { direcao: string; _count: number }[];
+  };
+  detalhes: AccessLogDetail[];
+}

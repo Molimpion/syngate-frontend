@@ -26,8 +26,8 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
     { name: 'Painel',        href: '/dashboard',               icon: Activity,  roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
     { name: 'Usuários',      href: '/dashboard/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Salas',         href: '/dashboard/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos',  href: '/dashboard/dispositivos',  icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
-    { name: 'Relatórios',    href: '/dashboard/relatorios',    icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Dispositivos',  href: '/dashboard/devices',  icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Relatórios',    href: '/dashboard/reports',    icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
   ];
 
