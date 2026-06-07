@@ -2,20 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SoftDeleteDialog } from '@/components/usuarios/SoftDeleteDialog';
 import { useSession } from '@/hooks/useSession';
 import { inativarUsuario, listarUsuarios, reativarUsuario, type Usuario } from '@/services/usuarios.service';
@@ -25,19 +19,39 @@ const PAGE_SIZE = 10;
 export default function UsuariosPage() {
   const queryClient = useQueryClient();
   const { session, isLoading } = useSession();
+  
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const { replace } = useRouter();
 
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  // Lê os parâmetros diretamente da URL
+  const pageParam = searchParams.get('page');
+  const qParam = searchParams.get('q');
 
+  const page = pageParam ? parseInt(pageParam, 10) : 1;
+  const debouncedSearch = qParam || '';
+
+  // Estado local apenas para manter a digitação fluida no Input
+  const [inputValue, setInputValue] = useState(debouncedSearch);
+
+  // Debounce que atualiza a URL em vez do estado local
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-      setPage(1);
+      const params = new URLSearchParams(searchParams.toString());
+      if (inputValue.trim()) {
+        params.set('q', inputValue.trim());
+      } else {
+        params.delete('q');
+      }
+      // Se a busca mudar e já existir um termo, volta para a página 1
+      if (inputValue.trim() !== debouncedSearch) {
+        params.set('page', '1'); 
+      }
+      
+      replace(`${pathname}?${params.toString()}`, { scroll: false });
     }, 300);
-
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [inputValue, pathname, replace, searchParams, debouncedSearch]);
 
   const usuariosQuery = useQuery({
     queryKey: ['usuarios', page, debouncedSearch],
@@ -68,20 +82,27 @@ export default function UsuariosPage() {
     },
   });
 
+  // Função para mudar de página alterando a URL
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', newPage.toString());
+    replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const canAccess = session?.papel === 'GESTOR' || session?.papel === 'COORDENADOR';
 
   if (isLoading) {
-    return <div className="p-6">Carregando sessão...</div>;
+    return <div className="p-6 text-muted-foreground">Carregando sessão...</div>;
   }
 
   if (!canAccess) {
     return (
       <div className="p-6">
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle>Acesso restrito</CardTitle>
+            <CardTitle className="text-foreground">Acesso restrito</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-muted-foreground">
             Seu perfil não possui permissão para acessar a gestão de usuários.
           </CardContent>
         </Card>
@@ -96,30 +117,29 @@ export default function UsuariosPage() {
     <div className="p-6 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Gestão de usuários</h1>
-          <p className="text-sm text-slate-500">Cadastre, edite, inative e vincule cartões RFID.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Usuários</h1>
+          <p className="text-sm text-muted-foreground">Cadastre, edite, inative e vincule cartões RFID.</p>
         </div>
-
-        <Button asChild>
-          <Link href="/usuarios/novo">Novo usuário</Link>
+        <Button asChild className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+          <Link href="/dashboard/usuarios/novo">Novo Usuário</Link>
         </Button>
       </div>
 
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle>Usuários cadastrados</CardTitle>
+            <CardTitle className="text-foreground">Usuários Cadastrados</CardTitle>
             <Input
               placeholder="Buscar por nome, e-mail ou matrícula"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               className="w-full max-w-sm"
             />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {usuariosQuery.isLoading ? (
-            <p className="text-sm text-slate-500">Carregando usuários...</p>
+            <p className="text-sm text-muted-foreground">Carregando usuários...</p>
           ) : usuariosQuery.isError ? (
             <p className="text-sm text-destructive">Erro ao carregar usuários.</p>
           ) : (
@@ -137,20 +157,24 @@ export default function UsuariosPage() {
                 <TableBody>
                   {usuarios.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-sm text-slate-500">
+                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
                         Nenhum usuário encontrado.
                       </TableCell>
                     </TableRow>
                   ) : (
                     usuarios.map((usuario) => (
                       <TableRow key={usuario.id}>
-                        <TableCell className="font-medium">{usuario.nome}</TableCell>
-                        <TableCell>{usuario.email}</TableCell>
-                        <TableCell>{usuario.papel}</TableCell>
+                        <TableCell className="font-medium text-foreground">{usuario.nome}</TableCell>
+                        <TableCell className="text-muted-foreground">{usuario.email}</TableCell>
+                        <TableCell className="text-muted-foreground">{usuario.papel}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={usuario.ativo ? 'border-emerald-500/40 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-100 text-slate-500'}
+                            className={
+                              usuario.ativo
+                                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'border-border bg-muted text-muted-foreground'
+                            }
                           >
                             {usuario.ativo ? 'Ativo' : 'Inativo'}
                           </Badge>
@@ -158,10 +182,10 @@ export default function UsuariosPage() {
                         <TableCell>
                           <div className="flex flex-wrap justify-end gap-2">
                             <Button asChild size="sm" variant="outline">
-                              <Link href={`/usuarios/${usuario.id}`}>Editar</Link>
+                              <Link href={`/dashboard/usuarios/${usuario.id}`}>Editar</Link>
                             </Button>
                             <Button asChild size="sm" variant="outline">
-                              <Link href={`/usuarios/${usuario.id}/cartao`}>Cartão</Link>
+                              <Link href={`/dashboard/usuarios/${usuario.id}/cartao`}>Cartão</Link>
                             </Button>
                             {!usuario.ativo && (
                               <Button
@@ -187,14 +211,14 @@ export default function UsuariosPage() {
               </Table>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
                     disabled={page <= 1}
                   >
                     Anterior
@@ -202,7 +226,7 @@ export default function UsuariosPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                     disabled={page >= totalPages}
                   >
                     Próxima
