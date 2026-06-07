@@ -68,9 +68,47 @@ src/
         new/
           page.tsx
         page.tsx
+      perfil/
+        page.tsx
       reports/
         page.tsx
+      salas/
+        [id]/
+          page.tsx
+        nova/
+          page.tsx
+        page.tsx
+      turnos/
+        [id]/
+          page.tsx
+        novo/
+          page.tsx
+        page.tsx
+      usuarios/
+        [id]/
+          cartao/
+            page.tsx
+          page.tsx
+        novo/
+          page.tsx
+        page.tsx
       layout.tsx
+    api/
+      perfil/
+        trocar-senha/
+          route.ts
+      salas/
+        [...path]/
+          route.ts
+        route.ts
+      turnos/
+        [...path]/
+          route.ts
+        route.ts
+      usuarios/
+        [...path]/
+          route.ts
+        route.ts
     favicon.ico
     layout.tsx
     page.tsx
@@ -85,9 +123,16 @@ src/
     layout/
       header.tsx
       sidebar.tsx
+    perfil/
+      TrocarSenhaForm.tsx
     reports/
       ReportsFilter.tsx
       ReportsTable.tsx
+    salas/
+      RoomForm.tsx
+    turnos/
+      DiasSemanaSelector.tsx
+      TurnoForm.tsx
     ui/
       avatar.tsx
       badge.tsx
@@ -101,6 +146,9 @@ src/
       separator.tsx
       sonner.tsx
       table.tsx
+    usuarios/
+      SoftDeleteDialog.tsx
+      UsuarioForm.tsx
   hooks/
     useDashboardStats.ts
     useSession.ts
@@ -113,12 +161,18 @@ src/
     providers.tsx
   services/
     devices.service.ts
+    perfil.service.ts
     reports.service.ts
+    salas.service.ts
+    turnos.service.ts
+    usuarios.service.ts
   styles/
     globals.css
   types/
     global.d.ts
     index.ts
+  utils/
+    time.ts
   middleware.ts
 .commitlintrc.json
 .gitignore
@@ -225,79 +279,241 @@ export default function VerificarEmailPage() {
 }
 </file>
 
-<file path="src/app/(dashboard)/reports/page.tsx">
-'use client';
+<file path="src/app/api/perfil/trocar-senha/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { DownloadCloud } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { reportsService } from '@/services/reports.service';
-import { ReportsFilter } from '@/components/reports/ReportsFilter';
-import { ReportsTable } from '@/components/reports/ReportsTable';
-import { toast } from 'sonner';
+const TOKEN_COOKIE = 'syngate_token';
 
-function ReportsContent() {
-  const searchParams = useSearchParams();
-  const [isExporting, setIsExporting] = useState(false);
+function buildCandidates(baseUrl: string) {
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
-  const filters = {
-    dataInicio: searchParams.get('dataInicio') || undefined,
-    dataFim: searchParams.get('dataFim') || undefined,
-    status: searchParams.get('status') || undefined,
-  };
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['reports', filters],
-    queryFn: () => reportsService.getDashboard(filters),
-    staleTime: 5 * 60 * 1000, // 5 minutos de cache (alinhado com Redis)
-  });
-
-  const handleExport = async () => {
-    setIsExporting(true);
-    toast.info('Iniciando download do CSV...');
-    try {
-      await reportsService.exportCSV(filters);
-      toast.success('Download concluído!');
-    } catch {
-      toast.error('Erro ao exportar arquivo.');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Relatórios e Auditoria</h1>
-        <Button 
-          onClick={handleExport} 
-          disabled={isExporting || isLoading || !data?.data?.detalhes?.length} 
-          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
-        >
-          <DownloadCloud className="h-4 w-4 mr-2" /> 
-          {isExporting ? 'Gerando...' : 'Exportar CSV'}
-        </Button>
-      </div>
-
-      <ReportsFilter />
-
-      {isLoading ? (
-        <div className="text-center py-10 text-slate-500">Carregando logs...</div>
-      ) : (
-        <ReportsTable logs={data?.data?.detalhes || []} />
-      )}
-    </div>
-  );
+  return [
+    `${cleanedBase}/auth/trocar-senha`,
+    `${cleanedBase}/auth/change-password`,
+    `${cleanedBase}/users/me/password`,
+  ];
 }
 
-export default function ReportsPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Carregando interface...</div>}>
-      <ReportsContent />
-    </Suspense>
-  );
+export async function POST(req: NextRequest) {
+  try {
+    const baseUrl = process.env.API_URL;
+    if (!baseUrl) {
+      throw new Error('API_URL nao configurada no ambiente.');
+    }
+
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const body = await req.text();
+    const candidates = buildCandidates(baseUrl);
+
+    let lastResponse: Response | null = null;
+
+    for (const targetUrl of candidates) {
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body,
+        cache: 'no-store',
+      });
+
+      if (response.status === 404) {
+        lastResponse = response;
+        continue;
+      }
+
+      const text = await response.text();
+      return new NextResponse(text, {
+        status: response.status,
+        headers: {
+          'content-type': response.headers.get('content-type') ?? 'application/json',
+        },
+      });
+    }
+
+    const lastText = lastResponse ? await lastResponse.text() : JSON.stringify({ status: 'error', message: 'Endpoint nao encontrado.' });
+    return new NextResponse(lastText, {
+      status: 404,
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado ao trocar senha.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+</file>
+
+<file path="src/app/api/usuarios/[...path]/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+function buildTargetUrl(req: NextRequest, path: string[]) {
+	const baseUrl = process.env.API_URL;
+
+	if (!baseUrl) {
+		throw new Error('API_URL não configurada no ambiente.');
+	}
+
+	const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+	const suffix = path.length > 0 ? `/${path.join('/')}` : '';
+
+	const target = new URL(`${cleanedBase}/users${suffix}`);
+	req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+	return target.toString();
+}
+
+async function handle(req: NextRequest, path: string[]) {
+	try {
+		const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+		const targetUrl = buildTargetUrl(req, path);
+
+		const headers: HeadersInit = {
+			Accept: 'application/json',
+		};
+
+		const contentType = req.headers.get('content-type');
+		if (contentType) {
+			headers['Content-Type'] = contentType;
+		}
+
+		if (token) {
+			headers.Authorization = `Bearer ${token}`;
+		}
+
+		const method = req.method.toUpperCase();
+		const hasBody = !['GET', 'HEAD'].includes(method);
+
+		const response = await fetch(targetUrl, {
+			method,
+			headers,
+			body: hasBody ? await req.text() : undefined,
+			cache: 'no-store',
+		});
+
+		const responseText = await response.text();
+		const nextHeaders = new Headers();
+		const responseContentType = response.headers.get('content-type');
+
+		if (responseContentType) {
+			nextHeaders.set('content-type', responseContentType);
+		}
+
+		return new NextResponse(responseText, {
+			status: response.status,
+			headers: nextHeaders,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de usuários.';
+		return NextResponse.json({ status: 'error', message }, { status: 500 });
+	}
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+	const { path = [] } = await context.params;
+	return handle(req, path);
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+	const { path = [] } = await context.params;
+	return handle(req, path);
+}
+
+export async function PUT(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+	const { path = [] } = await context.params;
+	return handle(req, path);
+}
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+	const { path = [] } = await context.params;
+	return handle(req, path);
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+	const { path = [] } = await context.params;
+	return handle(req, path);
+}
+</file>
+
+<file path="src/app/api/usuarios/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+function buildTargetUrl(req: NextRequest) {
+  const baseUrl = process.env.API_URL;
+
+  if (!baseUrl) {
+    throw new Error('API_URL não configurada no ambiente.');
+  }
+
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const target = new URL(`${cleanedBase}/users`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+  return target.toString();
+}
+
+async function handle(req: NextRequest) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req);
+
+    const headers: HeadersInit = {
+      Accept: 'application/json',
+    };
+
+    const contentType = req.headers.get('content-type');
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const responseContentType = response.headers.get('content-type');
+
+    if (responseContentType) {
+      nextHeaders.set('content-type', responseContentType);
+    }
+
+    return new NextResponse(responseText, {
+      status: response.status,
+      headers: nextHeaders,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de usuários.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handle(req);
 }
 </file>
 
@@ -440,126 +656,179 @@ export function RawKeyDisplay({ rawKey, onClose }: Props) {
 }
 </file>
 
-<file path="src/components/reports/ReportsFilter.tsx">
+<file path="src/components/perfil/TrocarSenhaForm.tsx">
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
+import { z } from 'zod';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { FilterX } from 'lucide-react';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { trocarSenha } from '@/services/perfil.service';
 
-export function ReportsFilter() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+const trocarSenhaSchema = z
+  .object({
+    senhaAtual: z.string().min(1, 'Informe sua senha atual.'),
+    novaSenha: z
+      .string()
+      .min(8, 'A nova senha deve ter no minimo 8 caracteres.')
+      .regex(/[A-Z]/, 'A nova senha deve conter ao menos 1 letra maiuscula.')
+      .regex(/[0-9]/, 'A nova senha deve conter ao menos 1 numero.'),
+    confirmarNovaSenha: z.string().min(1, 'Confirme a nova senha.'),
+  })
+  .refine((values) => values.novaSenha === values.confirmarNovaSenha, {
+    path: ['confirmarNovaSenha'],
+    message: 'As senhas nao conferem.',
+  });
 
-  const handleChange = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    router.push(`?${params.toString()}`);
-  };
+type TrocarSenhaFormValues = z.infer<typeof trocarSenhaSchema>;
 
-  const clearFilters = () => {
-    router.push('/dashboard/reports');
-  };
+export function TrocarSenhaForm() {
+  const [tentativasFalhas, setTentativasFalhas] = useState(0);
+  const [bloqueadoAte, setBloqueadoAte] = useState<number | null>(null);
+  const [agora, setAgora] = useState(Date.now());
+
+  const form = useForm<TrocarSenhaFormValues>({
+    resolver: zodResolver(trocarSenhaSchema),
+    defaultValues: {
+      senhaAtual: '',
+      novaSenha: '',
+      confirmarNovaSenha: '',
+    },
+  });
+
+  const isBloqueado = Boolean(bloqueadoAte && bloqueadoAte > agora);
+
+  useEffect(() => {
+    if (!isBloqueado) {
+      return;
+    }
+
+    const timer = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [isBloqueado]);
+
+  useEffect(() => {
+    if (!bloqueadoAte || bloqueadoAte <= Date.now()) {
+      return;
+    }
+
+    const timeoutMs = bloqueadoAte - Date.now();
+    const timeoutId = setTimeout(() => {
+      setTentativasFalhas(0);
+      setBloqueadoAte(null);
+      setAgora(Date.now());
+    }, timeoutMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [bloqueadoAte]);
+
+  const segundosRestantes = useMemo(() => {
+    if (!isBloqueado || !bloqueadoAte) {
+      return 0;
+    }
+
+    return Math.max(0, Math.ceil((bloqueadoAte - agora) / 1000));
+  }, [agora, bloqueadoAte, isBloqueado]);
+
+  const trocarSenhaMutation = useMutation({
+    mutationFn: (payload: { senhaAtual: string; novaSenha: string }) => trocarSenha(payload),
+    onSuccess: () => {
+      setTentativasFalhas(0);
+      setBloqueadoAte(null);
+      form.reset({ senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
+      toast.success('Senha alterada com sucesso.');
+    },
+    onError: () => {
+      const novasTentativas = tentativasFalhas + 1;
+      setTentativasFalhas(novasTentativas);
+
+      if (novasTentativas >= 3) {
+        setBloqueadoAte(Date.now() + 30_000);
+      }
+
+      toast.error('Nao foi possivel alterar a senha. Verifique os dados e tente novamente.');
+    },
+  });
+
+  async function handleSubmit(values: TrocarSenhaFormValues) {
+    if (isBloqueado) {
+      return;
+    }
+
+    await trocarSenhaMutation.mutateAsync({
+      senhaAtual: values.senhaAtual,
+      novaSenha: values.novaSenha,
+    });
+  }
 
   return (
-    <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
-      <div className="space-y-1.5 flex-1 min-w-[150px]">
-        <Label>Data Início</Label>
-        <Input 
-          type="date" 
-          value={searchParams.get('dataInicio') || ''} 
-          onChange={(e) => handleChange('dataInicio', e.target.value)} 
-        />
-      </div>
-      <div className="space-y-1.5 flex-1 min-w-[150px]">
-        <Label>Data Fim</Label>
-        <Input 
-          type="date" 
-          value={searchParams.get('dataFim') || ''} 
-          onChange={(e) => handleChange('dataFim', e.target.value)} 
-        />
-      </div>
-      <div className="space-y-1.5 flex-1 min-w-[150px]">
-        <Label>Status</Label>
-        <select 
-          className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm shadow-sm"
-          value={searchParams.get('status') || ''} 
-          onChange={(e) => handleChange('status', e.target.value)}
-        >
-          <option value="">Todos</option>
-          <option value="CONCEDIDO">Concedido</option>
-          <option value="NEGADO">Negado</option>
-        </select>
-      </div>
-      <Button variant="outline" onClick={clearFilters} className="h-8">
-        <FilterX className="h-4 w-4 mr-2" /> Limpar
-      </Button>
-    </div>
-  );
-}
-</file>
-
-<file path="src/components/reports/ReportsTable.tsx">
-'use client';
-
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AccessLogDetail } from '@/types';
-
-export function ReportsTable({ logs }: { logs: AccessLogDetail[] }) {
-  return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data/Hora</TableHead>
-            <TableHead>Usuário / UID</TableHead>
-            <TableHead>Sala / Dispositivo</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Motivo</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {logs.length === 0 && (
-            <TableRow><TableCell colSpan={5} className="text-center py-6 text-slate-500">Nenhum registro encontrado.</TableCell></TableRow>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="senhaAtual"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Senha atual</FormLabel>
+              <FormControl>
+                <Input type="password" autoComplete="current-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
-          {logs.map((log) => (
-            <TableRow key={log.id}>
-              <TableCell className="text-xs whitespace-nowrap">
-                {new Date(log.dataHora).toLocaleString('pt-BR')}
-              </TableCell>
-              <TableCell>
-                {log.usuario ? (
-                  <div>
-                    <p className="font-semibold">{log.usuario.nome}</p>
-                    <p className="text-xs text-slate-500">{log.usuario.papel} • {log.usuario.matricula}</p>
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                    Cartão Desconhecido ({log.uidCartao})
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                <p className="font-medium">{log.dispositivo.sala.nome} {log.dispositivo.sala.bloco && `(${log.dispositivo.sala.bloco})`}</p>
-                <p className="text-xs text-slate-500">{log.dispositivo.nome} • {log.direcao}</p>
-              </TableCell>
-              <TableCell>
-                <Badge className={log.status === 'CONCEDIDO' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}>
-                  {log.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-xs max-w-[200px] truncate" title={log.motivo || '-'}>
-                {log.motivo || '-'}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+        />
+
+        <FormField
+          control={form.control}
+          name="novaSenha"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nova senha</FormLabel>
+              <FormControl>
+                <Input type="password" autoComplete="new-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="confirmarNovaSenha"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirmar nova senha</FormLabel>
+              <FormControl>
+                <Input type="password" autoComplete="new-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {isBloqueado && (
+          <p className="text-sm text-amber-700">
+            Formulario bloqueado temporariamente. Tente novamente em {segundosRestantes}s.
+          </p>
+        )}
+
+        <Button type="submit" disabled={isBloqueado || trocarSenhaMutation.isPending}>
+          {trocarSenhaMutation.isPending ? 'Salvando...' : 'Alterar senha'}
+        </Button>
+      </form>
+    </Form>
   );
 }
 </file>
@@ -1711,6 +1980,70 @@ export {
 }
 </file>
 
+<file path="src/components/usuarios/SoftDeleteDialog.tsx">
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+
+interface SoftDeleteDialogProps {
+  usuarioNome: string;
+  disabled?: boolean;
+  onConfirm: () => Promise<void>;
+}
+
+export function SoftDeleteDialog({ usuarioNome, disabled, onConfirm }: SoftDeleteDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleConfirm() {
+    try {
+      setIsLoading(true);
+      await onConfirm();
+      setOpen(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive" size="sm" disabled={disabled}>
+          Inativar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmar inativação</DialogTitle>
+          <DialogDescription>
+            Você está prestes a inativar o usuário <strong>{usuarioNome}</strong>. Essa ação é um soft delete e
+            poderá ser revertida por edição posterior.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={isLoading}>
+            {isLoading ? 'Inativando...' : 'Confirmar inativação'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+</file>
+
 <file path="src/hooks/useDashboardStats.ts">
 'use client';
 
@@ -1753,27 +2086,6 @@ export function useSession() {
   }, []);
 
   return { session, isLoading };
-}
-</file>
-
-<file path="src/lib/api.ts">
-export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const isServer = typeof window === 'undefined';
-  const baseUrl = isServer ? process.env.API_URL : '/api/proxy';
-  
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.message || 'Erro na requisição.');
-  }
-
-  if (response.status === 204) return {} as T;
-  return response.json();
 }
 </file>
 
@@ -1824,66 +2136,163 @@ export const DevicesService = {
 };
 </file>
 
-<file path="src/services/reports.service.ts">
+<file path="src/services/perfil.service.ts">
 import { apiFetch } from '@/lib/api';
-import { ReportFilters, DashboardReportResponse } from '@/types';
+import type { Usuario } from '@/services/usuarios.service';
 
-export const reportsService = {
-  getDashboard: (filters: ReportFilters) => {
-    const params = new URLSearchParams(filters as Record<string, string>).toString();
-    return apiFetch<{ data: DashboardReportResponse }>(`/reports/dashboard?${params}`);
-  },
-  
-  exportCSV: async (filters: ReportFilters) => {
-    const params = new URLSearchParams(filters as Record<string, string>).toString();
-    const isServer = typeof window === 'undefined';
-    const baseUrl = isServer ? process.env.API_URL : '/api/proxy';
-    
-    // Precisamos usar fetch direto aqui para tratar a resposta como Blob (arquivo)
-    const token = document.cookie.split('syngate_token=')[1]?.split(';')[0];
-    
-    const response = await fetch(`${baseUrl}/reports/export/csv?${params}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  data: T;
+  message?: string;
+}
 
-    if (!response.ok) throw new Error('Erro ao exportar CSV');
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio-acessos-${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+export interface TrocarSenhaPayload {
+  senhaAtual: string;
+  novaSenha: string;
+}
+
+export async function buscarPerfil() {
+  return apiFetch<ApiResponse<Usuario>>('/api/usuarios/me');
+}
+
+export async function trocarSenha(payload: TrocarSenhaPayload) {
+  return apiFetch<ApiResponse<{ message?: string }>>('/api/perfil/trocar-senha', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+</file>
+
+<file path="src/services/usuarios.service.ts">
+import { apiFetch } from '@/lib/api';
+import { PapelUsuario } from '@/types';
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface Usuario {
+  id: string;
+  nome: string;
+  email: string;
+  matricula?: string | null;
+  cartaoId?: string | null;
+  curso?: string | null;
+  papel: PapelUsuario;
+  ativo: boolean;
+  dataExpiracao?: string | null;
+  turnoId?: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  emailVerificado: boolean;
+}
+
+export interface Turno {
+  id: string;
+  nome: string;
+  horaInicio: number;
+  horaFim: number;
+  diasSemana: number[];
+}
+
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  data: T;
+  message?: string;
+}
+
+interface ApiPaginatedResponse<T> extends ApiResponse<T> {
+  meta: PaginationMeta;
+}
+
+export interface ListarUsuariosParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface CriarUsuarioPayload {
+  nome: string;
+  email: string;
+  senha: string;
+  papel: PapelUsuario;
+  matricula?: string;
+  curso?: string;
+  turnoId?: string;
+}
+
+export interface AtualizarUsuarioPayload {
+  nome?: string;
+  email?: string;
+  papel?: PapelUsuario;
+  matricula?: string;
+  curso?: string;
+  turnoId?: string;
+  ativo?: boolean;
+}
+
+export async function listarUsuarios(params: ListarUsuariosParams = {}) {
+  const searchParams = new URLSearchParams();
+
+  searchParams.set('page', String(params.page ?? 1));
+  searchParams.set('limit', String(params.limit ?? 10));
+
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
   }
-};
+
+  const query = searchParams.toString();
+  return apiFetch<ApiPaginatedResponse<Usuario[]>>(`/api/usuarios?${query}`);
+}
+
+export async function buscarUsuarioPorId(id: string) {
+  return apiFetch<ApiResponse<Usuario>>(`/api/usuarios/${id}`);
+}
+
+export async function criarUsuario(payload: CriarUsuarioPayload) {
+  return apiFetch<ApiResponse<Usuario>>('/api/usuarios', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function atualizarUsuario(id: string, payload: AtualizarUsuarioPayload) {
+  return apiFetch<ApiResponse<Usuario>>(`/api/usuarios/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function inativarUsuario(id: string) {
+  return apiFetch<void>(`/api/usuarios/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function reativarUsuario(id: string) {
+  return apiFetch<ApiResponse<Usuario>>(`/api/usuarios/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ ativo: true }),
+  });
+}
+
+export async function vincularCartaoUsuario(id: string, cartaoId: string | null) {
+  return apiFetch<ApiResponse<Usuario>>(`/api/usuarios/${id}/cartao`, {
+    method: 'PATCH',
+    body: JSON.stringify({ cartaoId }),
+  });
+}
+
+export async function listarTurnos() {
+  return apiFetch<ApiPaginatedResponse<Turno[]>>('/api/turnos?page=1&limit=100');
+}
 </file>
 
 <file path="src/types/global.d.ts">
 declare module '*.css';
-</file>
-
-<file path="src/middleware.ts">
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('syngate_token')?.value;
-
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-  }
-
-  return NextResponse.next();
-}
-
-export const config = {
-  matcher: ['/dashboard/:path*'],
-};
 </file>
 
 <file path=".commitlintrc.json">
@@ -2351,6 +2760,1558 @@ export default function DevicesPage() {
 }
 </file>
 
+<file path="src/app/(dashboard)/perfil/page.tsx">
+'use client';
+
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrocarSenhaForm } from '@/components/perfil/TrocarSenhaForm';
+import { buscarPerfil } from '@/services/perfil.service';
+import { listarTurnos, type Turno } from '@/services/turnos.service';
+
+function formatarData(data?: string | null) {
+  if (!data) return '-';
+  const parsed = new Date(data);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return new Intl.DateTimeFormat('pt-BR').format(parsed);
+}
+
+function InfoField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-medium text-foreground">{value || '-'}</p>
+    </div>
+  );
+}
+
+export default function PerfilPage() {
+  const perfilQuery = useQuery({
+    queryKey: ['perfil'],
+    queryFn: buscarPerfil,
+  });
+
+  const turnosQuery = useQuery({
+    queryKey: ['turnos-perfil'],
+    queryFn: () => listarTurnos({ page: 1, limit: 100 }),
+  });
+
+  const turnoNome = useMemo(() => {
+    const perfil = perfilQuery.data?.data;
+    const turnos: Turno[] = turnosQuery.data?.data ?? [];
+    if (!perfil?.turnoId) return '-';
+    return turnos.find((turno) => turno.id === perfil.turnoId)?.nome ?? '-';
+  }, [perfilQuery.data?.data, turnosQuery.data?.data]);
+
+  return (
+    <div className="space-y-6 p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Meu perfil</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {perfilQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando dados do perfil...</p>
+          ) : perfilQuery.isError || !perfilQuery.data?.data ? (
+            <p className="text-sm text-destructive">Não foi possível carregar seu perfil.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <InfoField label="Nome"               value={perfilQuery.data.data.nome} />
+              <InfoField label="E-mail"             value={perfilQuery.data.data.email} />
+              <InfoField label="Papel"              value={perfilQuery.data.data.papel} />
+              <InfoField label="Matrícula"          value={perfilQuery.data.data.matricula} />
+              <InfoField label="Curso"              value={perfilQuery.data.data.curso} />
+              <InfoField label="Turno vinculado"    value={turnoNome} />
+              <InfoField label="Data de expiração"  value={formatarData(perfilQuery.data.data.dataExpiracao)} />
+              <InfoField label="UID do cartão RFID" value={perfilQuery.data.data.cartaoId} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Trocar senha</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TrocarSenhaForm />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/reports/page.tsx">
+'use client';
+
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { DownloadCloud } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { reportsService } from '@/services/reports.service';
+import { ReportsFilter } from '@/components/reports/ReportsFilter';
+import { ReportsTable } from '@/components/reports/ReportsTable';
+import { toast } from 'sonner';
+
+function ReportsContent() {
+  const searchParams = useSearchParams();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const filters = {
+    dataInicio:    searchParams.get('dataInicio')    || undefined,
+    dataFim:       searchParams.get('dataFim')       || undefined,
+    status:        searchParams.get('status')        || undefined,
+    usuarioId:     searchParams.get('usuarioId')     || undefined,
+    dispositivoId: searchParams.get('dispositivoId') || undefined,
+  };
+
+  const { data, isLoading } = useQuery({
+    // filtros completos no queryKey — recarrega ao mudar qualquer filtro
+    queryKey: ['reports', filters],
+    queryFn: () => reportsService.getDashboard(filters),
+    staleTime: 5 * 60 * 1000, // 5 min — alinhado com TTL do Redis do backend
+  });
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    toast.info('Iniciando download do CSV...');
+    try {
+      await reportsService.exportCSV(filters);
+      toast.success('Download concluído!');
+    } catch {
+      toast.error('Erro ao exportar arquivo.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Relatórios e Auditoria</h1>
+        <Button
+          onClick={handleExport}
+          disabled={isExporting || isLoading || !data?.data?.detalhes?.length}
+          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+        >
+          <DownloadCloud className="h-4 w-4 mr-2" />
+          {isExporting ? 'Gerando...' : 'Exportar CSV'}
+        </Button>
+      </div>
+
+      <ReportsFilter />
+
+      {isLoading ? (
+        <div className="text-center py-10 text-muted-foreground">Carregando logs...</div>
+      ) : (
+        <ReportsTable logs={data?.data?.detalhes || []} />
+      )}
+    </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-muted-foreground">Carregando interface...</div>}>
+      <ReportsContent />
+    </Suspense>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/salas/[id]/page.tsx">
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { RoomForm } from '@/components/salas/RoomForm';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { atualizarSala, buscarSalaPorId, type SalvarSalaPayload } from '@/services/salas.service';
+
+function getSalaErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (
+    message.includes('duplic') ||
+    message.includes('ja existe') ||
+    (message.includes('nome') && message.includes('bloco'))
+  ) {
+    return 'Já existe uma sala com esse nome nesse bloco.';
+  }
+  return 'Não foi possível atualizar a sala.';
+}
+
+export default function EditarSalaPage() {
+  const params = useParams<{ id: string }>();
+  const salaId = params.id;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const salaQuery = useQuery({
+    queryKey: ['sala', salaId],
+    queryFn: () => buscarSalaPorId(salaId),
+    enabled: Boolean(salaId),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: SalvarSalaPayload) => atualizarSala(salaId, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['salas'] }),
+        queryClient.invalidateQueries({ queryKey: ['sala', salaId] }),
+      ]);
+      toast.success('Sala atualizada com sucesso.');
+      router.push('/salas');
+    },
+    onError: (error) => {
+      toast.error(getSalaErrorMessage(error));
+    },
+  });
+
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Editar sala</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {salaQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando sala...</p>
+          ) : salaQuery.isError || !salaQuery.data?.data ? (
+            <p className="text-sm text-destructive">Não foi possível carregar os dados da sala.</p>
+          ) : (
+            <RoomForm
+              modo="editar"
+              valoresIniciais={salaQuery.data.data}
+              onSubmit={updateMutation.mutateAsync}
+              isSubmitting={updateMutation.isPending}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/salas/nova/page.tsx">
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { RoomForm } from '@/components/salas/RoomForm';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { criarSala, type SalvarSalaPayload } from '@/services/salas.service';
+
+function getSalaErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (
+    message.includes('duplic') ||
+    message.includes('ja existe') ||
+    (message.includes('nome') && message.includes('bloco'))
+  ) {
+    return 'Já existe uma sala com esse nome nesse bloco.';
+  }
+  return 'Não foi possível criar a sala.';
+}
+
+export default function NovaSalaPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: (payload: SalvarSalaPayload) => criarSala(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['salas'] });
+      toast.success('Sala criada com sucesso.');
+      router.push('/salas');
+    },
+    onError: (error) => {
+      toast.error(getSalaErrorMessage(error));
+    },
+  });
+
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Nova sala</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RoomForm
+            modo="criar"
+            onSubmit={createMutation.mutateAsync}
+            isSubmitting={createMutation.isPending}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/salas/page.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useSession } from '@/hooks/useSession';
+import { listarSalas, type Sala } from '@/services/salas.service';
+
+const PAGE_SIZE = 20;
+
+export default function SalasPage() {
+  const { session, isLoading } = useSession();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const salasQuery = useQuery({
+    queryKey: ['salas', page, debouncedSearch],
+    queryFn: () => listarSalas({ page, limit: PAGE_SIZE, search: debouncedSearch }),
+  });
+
+  const canAccess = session?.papel === 'GESTOR' || session?.papel === 'COORDENADOR';
+
+  const salasPorBloco = useMemo(() => {
+    const salas: Sala[] = salasQuery.data?.data ?? [];
+    return salas.reduce<Record<string, Sala[]>>((acc, sala) => {
+      const bloco = sala.bloco || 'Sem bloco';
+      if (!acc[bloco]) acc[bloco] = [];
+      acc[bloco].push(sala);
+      return acc;
+    }, {});
+  }, [salasQuery.data?.data]);
+
+  if (isLoading) {
+    return <div className="p-6 text-muted-foreground">Carregando sessão...</div>;
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-6">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Acesso restrito</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground">
+            Seu perfil não possui permissão para acessar as salas.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const blocosOrdenados = Object.keys(salasPorBloco).sort();
+  const totalPages = salasQuery.data?.meta?.totalPages ?? 1;
+
+  return (
+    <div className="p-6 md:p-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Salas</h1>
+          <p className="text-sm text-muted-foreground">Visualize as salas agrupadas por bloco.</p>
+        </div>
+        <Button asChild className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+          <Link href="/salas/nova">Nova sala</Link>
+        </Button>
+      </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-foreground">Salas cadastradas</CardTitle>
+            <Input
+              placeholder="Buscar por nome ou bloco"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full max-w-sm"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {salasQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando salas...</p>
+          ) : salasQuery.isError ? (
+            <p className="text-sm text-destructive">Erro ao carregar salas.</p>
+          ) : blocosOrdenados.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma sala encontrada.</p>
+          ) : (
+            <>
+              {blocosOrdenados.map((bloco) => (
+                <div key={bloco} className="space-y-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Bloco {bloco}
+                  </h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Bloco</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salasPorBloco[bloco].map((sala) => (
+                        <TableRow key={sala.id}>
+                          <TableCell className="font-medium text-foreground">{sala.nome}</TableCell>
+                          <TableCell className="text-muted-foreground">{sala.bloco}</TableCell>
+                          <TableCell>
+                            <div className="flex justify-end">
+                              <Button asChild size="sm" variant="outline">
+                                <Link href={`/salas/${sala.id}`}>Editar</Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Página {page} de {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/turnos/[id]/page.tsx">
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { TurnoForm } from '@/components/turnos/TurnoForm';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { atualizarTurno, buscarTurnoPorId, type SalvarTurnoPayload } from '@/services/turnos.service';
+
+export default function EditarTurnoPage() {
+  const params = useParams<{ id: string }>();
+  const turnoId = params.id;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const turnoQuery = useQuery({
+    queryKey: ['turno', turnoId],
+    queryFn: () => buscarTurnoPorId(turnoId),
+    enabled: Boolean(turnoId),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: SalvarTurnoPayload) => atualizarTurno(turnoId, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['turnos'] }),
+        queryClient.invalidateQueries({ queryKey: ['turno', turnoId] }),
+      ]);
+      toast.success('Turno atualizado com sucesso.');
+      router.push('/turnos');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Não foi possível atualizar o turno.';
+      toast.error(message);
+    },
+  });
+
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Editar turno</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {turnoQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando turno...</p>
+          ) : turnoQuery.isError || !turnoQuery.data?.data ? (
+            <p className="text-sm text-destructive">Não foi possível carregar os dados do turno.</p>
+          ) : (
+            <TurnoForm
+              modo="editar"
+              valoresIniciais={turnoQuery.data.data}
+              onSubmit={updateMutation.mutateAsync}
+              isSubmitting={updateMutation.isPending}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/turnos/novo/page.tsx">
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { TurnoForm } from '@/components/turnos/TurnoForm';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { criarTurno, type SalvarTurnoPayload } from '@/services/turnos.service';
+
+export default function NovoTurnoPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: (payload: SalvarTurnoPayload) => criarTurno(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['turnos'] });
+      toast.success('Turno criado com sucesso.');
+      router.push('/turnos');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Não foi possível criar o turno.';
+      toast.error(message);
+    },
+  });
+
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Novo turno</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TurnoForm
+            modo="criar"
+            onSubmit={createMutation.mutateAsync}
+            isSubmitting={createMutation.isPending}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/turnos/page.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { formatarDiasSemana } from '@/components/turnos/DiasSemanaSelector';
+import { useSession } from '@/hooks/useSession';
+import { listarTurnos, type Turno } from '@/services/turnos.service';
+import { minutesToTime } from '@/utils/time';
+
+const PAGE_SIZE = 10;
+
+export default function TurnosPage() {
+  const { session, isLoading } = useSession();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const turnosQuery = useQuery({
+    queryKey: ['turnos', page, debouncedSearch],
+    queryFn: () => listarTurnos({ page, limit: PAGE_SIZE, search: debouncedSearch }),
+  });
+
+  const canAccess = session?.papel === 'GESTOR' || session?.papel === 'COORDENADOR';
+
+  if (isLoading) {
+    return <div className="p-6 text-muted-foreground">Carregando sessão...</div>;
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-6">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Acesso restrito</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground">
+            Seu perfil não possui permissão para acessar os turnos.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const turnos: Turno[] = turnosQuery.data?.data ?? [];
+  const totalPages = turnosQuery.data?.meta?.totalPages ?? 1;
+
+  return (
+    <div className="p-6 md:p-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Turnos</h1>
+          <p className="text-sm text-muted-foreground">Configure horários e dias da semana de cada turno.</p>
+        </div>
+        <Button asChild className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+          <Link href="/turnos/novo">Novo turno</Link>
+        </Button>
+      </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-foreground">Turnos cadastrados</CardTitle>
+            <Input
+              placeholder="Buscar por nome"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full max-w-sm"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {turnosQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando turnos...</p>
+          ) : turnosQuery.isError ? (
+            <p className="text-sm text-destructive">Erro ao carregar turnos.</p>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Horário</TableHead>
+                    <TableHead>Dias</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {turnos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                        Nenhum turno encontrado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    turnos.map((turno) => (
+                      <TableRow key={turno.id}>
+                        <TableCell className="font-medium text-foreground">{turno.nome}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {minutesToTime(turno.horaInicio)} – {minutesToTime(turno.horaFim)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{formatarDiasSemana(turno.diasSemana)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/turnos/${turno.id}`}>Editar</Link>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Página {page} de {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/usuarios/[id]/cartao/page.tsx">
+'use client';
+
+import Image from 'next/image';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import QRCode from 'qrcode';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { buscarUsuarioPorId, vincularCartaoUsuario } from '@/services/usuarios.service';
+
+export default function VincularCartaoPage() {
+  const params = useParams<{ id: string }>();
+  const userId = params.id;
+  const queryClient = useQueryClient();
+
+  const [uid, setUid] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+
+  const usuarioQuery = useQuery({
+    queryKey: ['usuario', userId],
+    queryFn: () => buscarUsuarioPorId(userId),
+    enabled: Boolean(userId),
+  });
+
+  useEffect(() => {
+    const currentCard = usuarioQuery.data?.data?.cartaoId;
+    if (typeof currentCard === 'string') setUid(currentCard);
+  }, [usuarioQuery.data?.data?.cartaoId]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function generateQrCode() {
+      const normalized = uid.trim();
+      if (!normalized) { setQrCodeDataUrl(null); return; }
+      try {
+        const code = await QRCode.toDataURL(normalized, { width: 240, margin: 1 });
+        if (active) setQrCodeDataUrl(code);
+      } catch {
+        if (active) setQrCodeDataUrl(null);
+      }
+    }
+
+    generateQrCode();
+    return () => { active = false; };
+  }, [uid]);
+
+  const vinculoMutation = useMutation({
+    mutationFn: (cartaoId: string | null) => vincularCartaoUsuario(userId, cartaoId),
+    onSuccess: async (_, cartaoId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['usuarios'] }),
+        queryClient.invalidateQueries({ queryKey: ['usuario', userId] }),
+      ]);
+      toast.success(cartaoId ? 'Cartão vinculado com sucesso.' : 'Cartão desvinculado com sucesso.');
+      if (cartaoId === null) setUid('');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Erro ao atualizar vínculo do cartão.';
+      toast.error(message);
+    },
+  });
+
+  const handleVincular = async () => {
+    const normalized = uid.trim();
+    if (!normalized) { toast.error('Informe o UID do cartão para continuar.'); return; }
+    await vinculoMutation.mutateAsync(normalized);
+  };
+
+  const handleDesvincular = async () => {
+    await vinculoMutation.mutateAsync(null);
+  };
+
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Vínculo de Cartão RFID</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {usuarioQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando usuário...</p>
+          ) : usuarioQuery.isError || !usuarioQuery.data?.data ? (
+            <p className="text-sm text-destructive">Não foi possível carregar os dados do usuário.</p>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Usuário</p>
+                <p className="font-semibold text-foreground">{usuarioQuery.data.data.nome}</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground" htmlFor="uid-cartao">
+                  UID do Cartão RFID
+                </label>
+                <Input
+                  id="uid-cartao"
+                  placeholder="Ex: RFID-ALUN-002"
+                  value={uid}
+                  onChange={(e) => setUid(e.target.value)}
+                />
+              </div>
+
+              {qrCodeDataUrl && (
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="mb-3 text-sm font-medium text-foreground">QR Code do UID</p>
+                  <Image
+                    src={qrCodeDataUrl}
+                    alt="QR Code do UID"
+                    width={240}
+                    height={240}
+                    unoptimized
+                    className="h-auto w-auto rounded-lg"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={handleVincular}
+                  disabled={vinculoMutation.isPending}
+                  className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+                >
+                  {vinculoMutation.isPending ? 'Salvando...' : 'Vincular cartão'}
+                </Button>
+                <Button variant="outline" onClick={handleDesvincular} disabled={vinculoMutation.isPending}>
+                  Desvincular cartão
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/dashboard/usuarios">Voltar</Link>
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/usuarios/[id]/page.tsx">
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UsuarioForm } from '@/components/usuarios/UsuarioForm';
+import { buscarUsuarioPorId } from '@/services/usuarios.service';
+
+export default function EditarUsuarioPage() {
+  const params = useParams<{ id: string }>();
+  const userId = params.id;
+
+  const usuarioQuery = useQuery({
+    queryKey: ['usuario', userId],
+    queryFn: () => buscarUsuarioPorId(userId),
+    enabled: Boolean(userId),
+  });
+
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Editar Usuário</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {usuarioQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando usuário...</p>
+          ) : usuarioQuery.isError || !usuarioQuery.data?.data ? (
+            <p className="text-sm text-destructive">Não foi possível carregar os dados do usuário.</p>
+          ) : (
+            <UsuarioForm
+              modo="editar"
+              usuarioId={userId}
+              valoresIniciais={usuarioQuery.data.data}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/usuarios/novo/page.tsx">
+'use client';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UsuarioForm } from '@/components/usuarios/UsuarioForm';
+
+export default function NovoUsuarioPage() {
+  return (
+    <div className="p-6 md:p-8">
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Novo Usuário</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <UsuarioForm modo="criar" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/usuarios/page.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SoftDeleteDialog } from '@/components/usuarios/SoftDeleteDialog';
+import { useSession } from '@/hooks/useSession';
+import { inativarUsuario, listarUsuarios, reativarUsuario, type Usuario } from '@/services/usuarios.service';
+
+const PAGE_SIZE = 10;
+
+export default function UsuariosPage() {
+  const queryClient = useQueryClient();
+  const { session, isLoading } = useSession();
+  
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const { replace } = useRouter();
+
+  // Lê os parâmetros diretamente da URL
+  const pageParam = searchParams.get('page');
+  const qParam = searchParams.get('q');
+
+  const page = pageParam ? parseInt(pageParam, 10) : 1;
+  const debouncedSearch = qParam || '';
+
+  // Estado local apenas para manter a digitação fluida no Input
+  const [inputValue, setInputValue] = useState(debouncedSearch);
+
+  // Debounce que atualiza a URL em vez do estado local
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (inputValue.trim()) {
+        params.set('q', inputValue.trim());
+      } else {
+        params.delete('q');
+      }
+      // Se a busca mudar e já existir um termo, volta para a página 1
+      if (inputValue.trim() !== debouncedSearch) {
+        params.set('page', '1'); 
+      }
+      
+      replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [inputValue, pathname, replace, searchParams, debouncedSearch]);
+
+  const usuariosQuery = useQuery({
+    queryKey: ['usuarios', page, debouncedSearch],
+    queryFn: () => listarUsuarios({ page, limit: PAGE_SIZE, search: debouncedSearch }),
+  });
+
+  const inativarMutation = useMutation({
+    mutationFn: (id: string) => inativarUsuario(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      toast.success('Usuário inativado com sucesso.');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Não foi possível inativar o usuário.';
+      toast.error(message);
+    },
+  });
+
+  const reativarMutation = useMutation({
+    mutationFn: (id: string) => reativarUsuario(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      toast.success('Usuário reativado com sucesso.');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Não foi possível reativar o usuário.';
+      toast.error(message);
+    },
+  });
+
+  // Função para mudar de página alterando a URL
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', newPage.toString());
+    replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const canAccess = session?.papel === 'GESTOR' || session?.papel === 'COORDENADOR';
+
+  if (isLoading) {
+    return <div className="p-6 text-muted-foreground">Carregando sessão...</div>;
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-6">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Acesso restrito</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground">
+            Seu perfil não possui permissão para acessar a gestão de usuários.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const usuarios: Usuario[] = usuariosQuery.data?.data ?? [];
+  const totalPages = usuariosQuery.data?.meta?.totalPages ?? 1;
+
+  return (
+    <div className="p-6 md:p-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Usuários</h1>
+          <p className="text-sm text-muted-foreground">Cadastre, edite, inative e vincule cartões RFID.</p>
+        </div>
+        <Button asChild className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+          <Link href="/dashboard/usuarios/novo">Novo Usuário</Link>
+        </Button>
+      </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-foreground">Usuários Cadastrados</CardTitle>
+            <Input
+              placeholder="Buscar por nome, e-mail ou matrícula"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="w-full max-w-sm"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {usuariosQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando usuários...</p>
+          ) : usuariosQuery.isError ? (
+            <p className="text-sm text-destructive">Erro ao carregar usuários.</p>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Papel</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {usuarios.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                        Nenhum usuário encontrado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    usuarios.map((usuario) => (
+                      <TableRow key={usuario.id}>
+                        <TableCell className="font-medium text-foreground">{usuario.nome}</TableCell>
+                        <TableCell className="text-muted-foreground">{usuario.email}</TableCell>
+                        <TableCell className="text-muted-foreground">{usuario.papel}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              usuario.ativo
+                                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'border-border bg-muted text-muted-foreground'
+                            }
+                          >
+                            {usuario.ativo ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/dashboard/usuarios/${usuario.id}`}>Editar</Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/dashboard/usuarios/${usuario.id}/cartao`}>Cartão</Link>
+                            </Button>
+                            {!usuario.ativo && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={reativarMutation.isPending || inativarMutation.isPending}
+                                onClick={() => reativarMutation.mutateAsync(usuario.id)}
+                              >
+                                Reativar
+                              </Button>
+                            )}
+                            <SoftDeleteDialog
+                              usuarioNome={usuario.nome}
+                              disabled={!usuario.ativo || inativarMutation.isPending || reativarMutation.isPending}
+                              onConfirm={() => inativarMutation.mutateAsync(usuario.id)}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Página {page} de {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
+                    disabled={page <= 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/api/salas/[...path]/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+const NO_BODY_STATUS = new Set([204, 205, 304]);
+
+function buildTargetUrl(req: NextRequest, path: string[]) {
+  const baseUrl = process.env.API_URL;
+
+  if (!baseUrl) {
+    throw new Error('API_URL nao configurada no ambiente.');
+  }
+
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const suffix = path.length > 0 ? `/${path.join('/')}` : '';
+
+  const target = new URL(`${cleanedBase}/rooms${suffix}`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+  return target.toString();
+}
+
+async function handle(req: NextRequest, path: string[]) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req, path);
+
+    const headers: HeadersInit = {
+      Accept: 'application/json',
+    };
+
+    const contentType = req.headers.get('content-type');
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const responseContentType = response.headers.get('content-type');
+
+    if (responseContentType && !NO_BODY_STATUS.has(response.status)) {
+      nextHeaders.set('content-type', responseContentType);
+    }
+
+    if (NO_BODY_STATUS.has(response.status)) {
+      return new NextResponse(null, {
+        status: response.status,
+        headers: nextHeaders,
+      });
+    }
+
+    return new NextResponse(responseText, {
+      status: response.status,
+      headers: nextHeaders,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de salas.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function PUT(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+</file>
+
+<file path="src/app/api/salas/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+function buildTargetUrl(req: NextRequest) {
+  const baseUrl = process.env.API_URL;
+
+  if (!baseUrl) {
+    throw new Error('API_URL nao configurada no ambiente.');
+  }
+
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const target = new URL(`${cleanedBase}/rooms`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+  return target.toString();
+}
+
+async function handle(req: NextRequest) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req);
+
+    const headers: HeadersInit = {
+      Accept: 'application/json',
+    };
+
+    const contentType = req.headers.get('content-type');
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const responseContentType = response.headers.get('content-type');
+
+    if (responseContentType) {
+      nextHeaders.set('content-type', responseContentType);
+    }
+
+    return new NextResponse(responseText, {
+      status: response.status,
+      headers: nextHeaders,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de salas.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handle(req);
+}
+</file>
+
+<file path="src/app/api/turnos/[...path]/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+const NO_BODY_STATUS = new Set([204, 205, 304]);
+
+function buildTargetUrl(req: NextRequest, path: string[]) {
+  const baseUrl = process.env.API_URL;
+
+  if (!baseUrl) {
+    throw new Error('API_URL nao configurada no ambiente.');
+  }
+
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const suffix = path.length > 0 ? `/${path.join('/')}` : '';
+
+  const target = new URL(`${cleanedBase}/shifts${suffix}`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+  return target.toString();
+}
+
+async function handle(req: NextRequest, path: string[]) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req, path);
+
+    const headers: HeadersInit = {
+      Accept: 'application/json',
+    };
+
+    const contentType = req.headers.get('content-type');
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const responseContentType = response.headers.get('content-type');
+
+    if (responseContentType && !NO_BODY_STATUS.has(response.status)) {
+      nextHeaders.set('content-type', responseContentType);
+    }
+
+    if (NO_BODY_STATUS.has(response.status)) {
+      return new NextResponse(null, {
+        status: response.status,
+        headers: nextHeaders,
+      });
+    }
+
+    return new NextResponse(responseText, {
+      status: response.status,
+      headers: nextHeaders,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de turnos.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function PUT(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+</file>
+
+<file path="src/app/api/turnos/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+function buildTargetUrl(req: NextRequest) {
+  const baseUrl = process.env.API_URL;
+
+  if (!baseUrl) {
+    throw new Error('API_URL nao configurada no ambiente.');
+  }
+
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const target = new URL(`${cleanedBase}/shifts`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+  return target.toString();
+}
+
+async function handle(req: NextRequest) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req);
+
+    const headers: HeadersInit = {
+      Accept: 'application/json',
+    };
+
+    const contentType = req.headers.get('content-type');
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const text = await response.text();
+    return new NextResponse(text, {
+      status: response.status,
+      headers: {
+        'content-type': response.headers.get('content-type') ?? 'application/json',
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de turnos.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handle(req);
+}
+</file>
+
 <file path="src/app/page.tsx">
 import { redirect } from 'next/navigation';
 
@@ -2508,6 +4469,603 @@ export function DeviceForm({ initialData }: DeviceFormProps) {
 }
 </file>
 
+<file path="src/components/reports/ReportsFilter.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FilterX } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { Device } from '@/types';
+
+interface UsuarioBasico {
+  id: string;
+  nome: string;
+}
+
+const selectClass =
+  'flex h-8 w-full rounded-lg border border-input bg-background text-foreground px-2.5 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:border-ring';
+
+export function ReportsFilter() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [usuarios, setUsuarios] = useState<UsuarioBasico[]>([]);
+  const [dispositivos, setDispositivos] = useState<Device[]>([]);
+
+  useEffect(() => {
+    apiFetch<{ data: UsuarioBasico[] }>('/users?limit=200')
+      .then((res) => setUsuarios(res.data))
+      .catch(() => {});
+
+    apiFetch<{ data: Device[] }>('/devices')
+      .then((res) => setDispositivos(res.data))
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    router.push(`?${params.toString()}`);
+  };
+
+  const clearFilters = () => {
+    router.push('/dashboard/reports');
+  };
+
+  return (
+    <div className="bg-card p-4 rounded-xl border border-border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Data Início</Label>
+        <Input
+          type="date"
+          value={searchParams.get('dataInicio') || ''}
+          onChange={(e) => handleChange('dataInicio', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Data Fim</Label>
+        <Input
+          type="date"
+          value={searchParams.get('dataFim') || ''}
+          onChange={(e) => handleChange('dataFim', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Usuário</Label>
+        <select
+          className={selectClass}
+          value={searchParams.get('usuarioId') || ''}
+          onChange={(e) => handleChange('usuarioId', e.target.value)}
+        >
+          <option value="">Todos</option>
+          {usuarios.map((u) => (
+            <option key={u.id} value={u.id}>{u.nome}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Dispositivo</Label>
+        <select
+          className={selectClass}
+          value={searchParams.get('dispositivoId') || ''}
+          onChange={(e) => handleChange('dispositivoId', e.target.value)}
+        >
+          <option value="">Todos</option>
+          {dispositivos.map((d) => (
+            <option key={d.id} value={d.id}>{d.nome}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[120px]">
+        <Label>Status</Label>
+        <select
+          className={selectClass}
+          value={searchParams.get('status') || ''}
+          onChange={(e) => handleChange('status', e.target.value)}
+        >
+          <option value="">Todos</option>
+          <option value="CONCEDIDO">Concedido</option>
+          <option value="NEGADO">Negado</option>
+        </select>
+      </div>
+
+      <Button variant="outline" onClick={clearFilters} className="h-8 shrink-0">
+        <FilterX className="h-4 w-4 mr-2" /> Limpar
+      </Button>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/reports/ReportsTable.tsx">
+'use client';
+
+import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AccessLogDetail } from '@/types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 20;
+
+export function ReportsTable({ logs }: { logs: AccessLogDetail[] }) {
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset para página 1 quando os logs mudarem (novo filtro aplicado)
+
+  return (
+    <div className="space-y-4">
+      {/* Tabela */}
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data/Hora</TableHead>
+              <TableHead>Usuário / UID</TableHead>
+              <TableHead>Sala / Dispositivo</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Motivo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginated.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Nenhum registro encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+            {paginated.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell className="text-xs whitespace-nowrap text-foreground">
+                  {new Date(log.dataHora).toLocaleString('pt-BR')}
+                </TableCell>
+
+                <TableCell>
+                  {log.usuario ? (
+                    <div>
+                      <p className="font-semibold text-foreground">{log.usuario.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {log.usuario.papel} • {log.usuario.matricula}
+                      </p>
+                    </div>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700"
+                    >
+                      Cartão Desconhecido ({log.uidCartao})
+                    </Badge>
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  <p className="font-medium text-foreground">
+                    {log.dispositivo.sala.nome}{' '}
+                    {log.dispositivo.sala.bloco && `(${log.dispositivo.sala.bloco})`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {log.dispositivo.nome} • {log.direcao}
+                  </p>
+                </TableCell>
+
+                <TableCell>
+                  <Badge
+                    className={
+                      log.status === 'CONCEDIDO'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-red-500 text-white'
+                    }
+                  >
+                    {log.status}
+                  </Badge>
+                </TableCell>
+
+                <TableCell
+                  className="text-xs max-w-[200px] truncate text-muted-foreground"
+                  title={log.motivo || '-'}
+                >
+                  {log.motivo || '-'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm text-muted-foreground">
+            Página {page} de {totalPages} · {logs.length} registros
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            {/* Páginas numeradas — mostra até 5 */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce<(number | 'ellipsis')[]>((acc, p, i, arr) => {
+                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('ellipsis');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === 'ellipsis' ? (
+                  <span key={`ellipsis-${i}`} className="text-muted-foreground px-1">…</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={p === page ? 'default' : 'outline'}
+                    size="icon-sm"
+                    onClick={() => setPage(p as number)}
+                    className={p === page ? 'bg-[#004a99] text-white hover:bg-[#003d7d]' : ''}
+                  >
+                    {p}
+                  </Button>
+                )
+              )}
+
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/salas/RoomForm.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import type { Sala, SalvarSalaPayload } from '@/services/salas.service';
+
+const roomSchema = z.object({
+  nome: z.string().min(1, 'Informe o nome da sala.'),
+  bloco: z.string().min(1, 'Informe o bloco.'),
+});
+
+type RoomFormValues = z.infer<typeof roomSchema>;
+
+interface RoomFormProps {
+  modo: 'criar' | 'editar';
+  valoresIniciais?: Sala;
+  isSubmitting?: boolean;
+  onSubmit: (values: SalvarSalaPayload) => Promise<unknown>;
+}
+
+export function RoomForm({ modo, valoresIniciais, isSubmitting, onSubmit }: RoomFormProps) {
+  const form = useForm<RoomFormValues>({
+    resolver: zodResolver(roomSchema),
+    defaultValues: {
+      nome: valoresIniciais?.nome ?? '',
+      bloco: valoresIniciais?.bloco ?? '',
+    },
+  });
+
+  useEffect(() => {
+    form.reset({
+      nome: valoresIniciais?.nome ?? '',
+      bloco: valoresIniciais?.bloco ?? '',
+    });
+  }, [form, valoresIniciais]);
+
+  async function handleSubmit(values: RoomFormValues) {
+    await onSubmit({
+      nome: values.nome.trim(),
+      bloco: values.bloco.trim().toUpperCase(),
+    });
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+        <FormField
+          control={form.control}
+          name="nome"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome da sala</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: Laboratório 01" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="bloco"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Bloco</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: A" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+          >
+            {isSubmitting ? 'Salvando...' : modo === 'criar' ? 'Criar sala' : 'Salvar alterações'}
+          </Button>
+          <Button asChild variant="outline" type="button">
+            <Link href="/salas">Cancelar</Link>
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+</file>
+
+<file path="src/components/turnos/DiasSemanaSelector.tsx">
+'use client';
+
+import { Button } from '@/components/ui/button';
+
+const DIAS_SEMANA = [
+  { value: 0, shortLabel: 'Dom' },
+  { value: 1, shortLabel: 'Seg' },
+  { value: 2, shortLabel: 'Ter' },
+  { value: 3, shortLabel: 'Qua' },
+  { value: 4, shortLabel: 'Qui' },
+  { value: 5, shortLabel: 'Sex' },
+  { value: 6, shortLabel: 'Sab' },
+];
+
+interface DiasSemanaSelectorProps {
+  value: number[];
+  onChange: (dias: number[]) => void;
+  disabled?: boolean;
+}
+
+export function DiasSemanaSelector({ value, onChange, disabled }: DiasSemanaSelectorProps) {
+  function toggleDia(dia: number) {
+    if (value.includes(dia)) {
+      onChange(value.filter((current) => current !== dia));
+      return;
+    }
+
+    onChange([...value, dia].sort((a, b) => a - b));
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {DIAS_SEMANA.map((dia) => {
+        const isSelected = value.includes(dia.value);
+
+        return (
+          <Button
+            key={dia.value}
+            type="button"
+            size="sm"
+            variant={isSelected ? 'default' : 'outline'}
+            disabled={disabled}
+            onClick={() => toggleDia(dia.value)}
+          >
+            {dia.shortLabel}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function formatarDiasSemana(dias: number[]) {
+  if (dias.length === 0) {
+    return '-';
+  }
+
+  const labels = DIAS_SEMANA.filter((dia) => dias.includes(dia.value)).map((dia) => dia.shortLabel);
+  return labels.join(', ');
+}
+</file>
+
+<file path="src/components/turnos/TurnoForm.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { DiasSemanaSelector } from '@/components/turnos/DiasSemanaSelector';
+import type { SalvarTurnoPayload, Turno } from '@/services/turnos.service';
+import { minutesToTime, timeToMinutes } from '@/utils/time';
+
+const turnoSchema = z
+  .object({
+    nome: z.string().min(2, 'Informe o nome do turno.'),
+    horaInicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Informe o horário inicial em HH:MM.'),
+    horaFim: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Informe o horário final em HH:MM.'),
+    diasSemana: z.array(z.number().int().min(0).max(6)).min(1, 'Selecione ao menos um dia da semana.'),
+  })
+  .refine((values) => timeToMinutes(values.horaFim) > timeToMinutes(values.horaInicio), {
+    path: ['horaFim'],
+    message: 'O horário final deve ser maior que o inicial.',
+  });
+
+type TurnoFormValues = z.infer<typeof turnoSchema>;
+
+interface TurnoFormProps {
+  modo: 'criar' | 'editar';
+  valoresIniciais?: Turno;
+  isSubmitting?: boolean;
+  onSubmit: (values: SalvarTurnoPayload) => Promise<unknown>;
+}
+
+export function TurnoForm({ modo, valoresIniciais, isSubmitting, onSubmit }: TurnoFormProps) {
+  const form = useForm<TurnoFormValues>({
+    resolver: zodResolver(turnoSchema),
+    defaultValues: {
+      nome: valoresIniciais?.nome ?? '',
+      horaInicio: valoresIniciais ? minutesToTime(valoresIniciais.horaInicio) : '08:00',
+      horaFim: valoresIniciais ? minutesToTime(valoresIniciais.horaFim) : '12:00',
+      diasSemana: valoresIniciais?.diasSemana ?? [1, 2, 3, 4, 5],
+    },
+  });
+
+  useEffect(() => {
+    form.reset({
+      nome: valoresIniciais?.nome ?? '',
+      horaInicio: valoresIniciais ? minutesToTime(valoresIniciais.horaInicio) : '08:00',
+      horaFim: valoresIniciais ? minutesToTime(valoresIniciais.horaFim) : '12:00',
+      diasSemana: valoresIniciais?.diasSemana ?? [1, 2, 3, 4, 5],
+    });
+  }, [form, valoresIniciais]);
+
+  async function handleSubmit(values: TurnoFormValues) {
+    await onSubmit({
+      nome: values.nome.trim(),
+      horaInicio: timeToMinutes(values.horaInicio),
+      horaFim: timeToMinutes(values.horaFim),
+      diasSemana: values.diasSemana,
+    });
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+        <FormField
+          control={form.control}
+          name="nome"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: Manhã" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="horaInicio"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Horário início</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="horaFim"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Horário fim</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="diasSemana"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Dias da semana</FormLabel>
+              <FormControl>
+                <DiasSemanaSelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isSubmitting}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+          >
+            {isSubmitting ? 'Salvando...' : modo === 'criar' ? 'Criar turno' : 'Salvar alterações'}
+          </Button>
+          <Button asChild variant="outline" type="button">
+            <Link href="/turnos">Cancelar</Link>
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+</file>
+
 <file path="src/components/ui/button.tsx">
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -2576,6 +5134,493 @@ function Button({
 }
 
 export { Button, buttonVariants }
+</file>
+
+<file path="src/components/usuarios/UsuarioForm.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { criarUsuario, atualizarUsuario, listarTurnos, type Turno } from '@/services/usuarios.service';
+import type { PapelUsuario } from '@/types';
+
+const papeisPermitidos: PapelUsuario[] = ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'];
+
+const schemaBase = z.object({
+  nome:      z.string().min(3, 'O nome deve ter no mínimo 3 caracteres.'),
+  email:     z.string().email('Formato de e-mail inválido.'),
+  papel:     z.enum(['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE']),
+  matricula: z.string().optional(),
+  curso:     z.string().optional(),
+  turnoId:   z.string().optional(),
+});
+
+const schemaCriacao = schemaBase.extend({
+  senha: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres.'),
+});
+
+const schemaEdicao = schemaBase;
+
+type UsuarioCreateFormValues = z.infer<typeof schemaCriacao>;
+type UsuarioEditFormValues   = z.infer<typeof schemaEdicao>;
+
+interface UsuarioFormProps {
+  modo: 'criar' | 'editar';
+  usuarioId?: string;
+  valoresIniciais?: {
+    nome: string;
+    email: string;
+    papel: PapelUsuario;
+    matricula?: string | null;
+    curso?: string | null;
+    turnoId?: string | null;
+  };
+}
+
+const selectClass =
+  'flex h-8 w-full rounded-lg border border-input bg-background text-foreground px-3 text-sm transition-colors focus:outline-none focus:border-ring';
+
+export function UsuarioForm({ modo, usuarioId, valoresIniciais }: UsuarioFormProps) {
+  const isCriacao = modo === 'criar';
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const form = useForm<UsuarioCreateFormValues | UsuarioEditFormValues>({
+    resolver: zodResolver(isCriacao ? schemaCriacao : schemaEdicao),
+    defaultValues: {
+      nome:      valoresIniciais?.nome      ?? '',
+      email:     valoresIniciais?.email     ?? '',
+      senha:     '',
+      papel:     valoresIniciais?.papel     ?? 'ALUNO',
+      matricula: valoresIniciais?.matricula ?? '',
+      curso:     valoresIniciais?.curso     ?? '',
+      turnoId:   valoresIniciais?.turnoId   ?? '',
+    },
+  });
+
+  const turnosQuery = useQuery({
+    queryKey: ['turnos-form'],
+    queryFn: listarTurnos,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    form.reset({
+      nome:      valoresIniciais?.nome      ?? '',
+      email:     valoresIniciais?.email     ?? '',
+      senha:     '',
+      papel:     valoresIniciais?.papel     ?? 'ALUNO',
+      matricula: valoresIniciais?.matricula ?? '',
+      curso:     valoresIniciais?.curso     ?? '',
+      turnoId:   valoresIniciais?.turnoId   ?? '',
+    });
+  }, [form, valoresIniciais]);
+
+  const turnos: Turno[] = turnosQuery.data?.data ?? [];
+
+  const onSubmit = async (values: UsuarioCreateFormValues | UsuarioEditFormValues) => {
+    try {
+      if (isCriacao) {
+        await criarUsuario(values as UsuarioCreateFormValues);
+        toast.success('Usuário criado com sucesso!');
+      } else if (usuarioId) {
+        await atualizarUsuario(usuarioId, values);
+        toast.success('Usuário atualizado com sucesso!');
+      }
+
+      // Invalida o cache para a listagem refletir a mudança
+      await queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      if (usuarioId) {
+        await queryClient.invalidateQueries({ queryKey: ['usuario', usuarioId] });
+      }
+
+      router.push('/dashboard/usuarios');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro ao salvar usuário.';
+      toast.error(msg);
+    }
+  };
+
+  return (
+    <Form {...form}>
+      {/* div em vez de form — padrão do projeto */}
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+          <FormField control={form.control} name="nome" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome</FormLabel>
+              <FormControl><Input placeholder="Nome completo" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
+          <FormField control={form.control} name="email" render={({ field }) => (
+            <FormItem>
+              <FormLabel>E-mail</FormLabel>
+              <FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
+          {isCriacao && (
+            <FormField control={form.control} name="senha" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Senha</FormLabel>
+                <FormControl><Input type="password" placeholder="Mínimo 6 caracteres" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
+
+          <FormField control={form.control} name="papel" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Papel</FormLabel>
+              <FormControl>
+                <select className={selectClass} value={field.value} onChange={field.onChange}>
+                  {papeisPermitidos.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
+          <FormField control={form.control} name="matricula" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Matrícula</FormLabel>
+              <FormControl><Input placeholder="Opcional" {...field} value={field.value ?? ''} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
+          <FormField control={form.control} name="curso" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Curso</FormLabel>
+              <FormControl><Input placeholder="Opcional" {...field} value={field.value ?? ''} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
+          <FormField control={form.control} name="turnoId" render={({ field }) => (
+            <FormItem className="md:col-span-2">
+              <FormLabel>Turno</FormLabel>
+              <FormControl>
+                <select className={selectClass} value={field.value ?? ''} onChange={field.onChange}>
+                  <option value="">Sem turno</option>
+                  {turnos.map((turno) => (
+                    <option key={turno.id} value={turno.id}>{turno.nome}</option>
+                  ))}
+                </select>
+              </FormControl>
+              {turnosQuery.isError && (
+                <p className="text-xs text-destructive">Não foi possível carregar os turnos.</p>
+              )}
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={form.handleSubmit(onSubmit)}
+            disabled={form.formState.isSubmitting}
+            className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+          >
+            {form.formState.isSubmitting ? 'Salvando...' : 'Salvar usuário'}
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/usuarios">Cancelar</Link>
+          </Button>
+        </div>
+      </div>
+    </Form>
+  );
+}
+</file>
+
+<file path="src/lib/api.ts">
+export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const isServer = typeof window === 'undefined';
+  const isInternalApiRoute = endpoint.startsWith('/api/');
+  const baseUrl = isInternalApiRoute ? '' : isServer ? process.env.API_URL : '/api/proxy';
+  
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+
+    if (response.status === 401) {
+      throw new Error(errorData?.message || 'Sessão expirada. Faça login novamente.');
+    }
+
+    if (response.status === 403) {
+      throw new Error(errorData?.message || 'Acesso negado para esta operação.');
+    }
+
+    throw new Error(errorData?.message || 'Erro na requisição.');
+  }
+
+  if (response.status === 204) return {} as T;
+  return response.json();
+}
+</file>
+
+<file path="src/services/reports.service.ts">
+import { apiFetch } from '@/lib/api';
+import { ReportFilters, DashboardReportResponse } from '@/types';
+
+export const reportsService = {
+  getDashboard: (filters: ReportFilters) => {
+    const params = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v !== undefined)
+      ) as Record<string, string>
+    ).toString();
+    return apiFetch<{ data: DashboardReportResponse }>(`/reports/dashboard?${params}`);
+  },
+
+  exportCSV: async (filters: ReportFilters) => {
+    const params = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v !== undefined)
+      ) as Record<string, string>
+    ).toString();
+
+    // credentials: 'include' envia o cookie HttpOnly automaticamente
+    // NÃO lemos document.cookie — o cookie é httpOnly e inacessível ao JS
+    const response = await fetch(`/api/proxy/reports/export/csv?${params}`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) throw new Error('Erro ao exportar CSV');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-acessos-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
+};
+</file>
+
+<file path="src/services/salas.service.ts">
+import { apiFetch } from '@/lib/api';
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  data: T;
+  message?: string;
+}
+
+interface ApiPaginatedResponse<T> extends ApiResponse<T> {
+  meta: PaginationMeta;
+}
+
+export interface Sala {
+  id: string;
+  nome: string;
+  bloco: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+}
+
+export interface ListarSalasParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface SalvarSalaPayload {
+  nome: string;
+  bloco: string;
+}
+
+export async function listarSalas(params: ListarSalasParams = {}) {
+  const searchParams = new URLSearchParams();
+
+  searchParams.set('page', String(params.page ?? 1));
+  searchParams.set('limit', String(params.limit ?? 20));
+
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
+  }
+
+  const query = searchParams.toString();
+  return apiFetch<ApiPaginatedResponse<Sala[]>>(`/api/salas?${query}`);
+}
+
+export async function buscarSalaPorId(id: string) {
+  return apiFetch<ApiResponse<Sala>>(`/api/salas/${id}`);
+}
+
+export async function criarSala(payload: SalvarSalaPayload) {
+  return apiFetch<ApiResponse<Sala>>('/api/salas', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function atualizarSala(id: string, payload: SalvarSalaPayload) {
+  return apiFetch<ApiResponse<Sala>>(`/api/salas/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function excluirSala(id: string) {
+  return apiFetch<void>(`/api/salas/${id}`, {
+    method: 'DELETE',
+  });
+}
+</file>
+
+<file path="src/services/turnos.service.ts">
+import { apiFetch } from '@/lib/api';
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  data: T;
+  message?: string;
+}
+
+interface ApiPaginatedResponse<T> extends ApiResponse<T> {
+  meta: PaginationMeta;
+}
+
+export interface Turno {
+  id: string;
+  nome: string;
+  horaInicio: number;
+  horaFim: number;
+  diasSemana: number[];
+  criadoEm?: string;
+  atualizadoEm?: string;
+}
+
+export interface ListarTurnosParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface SalvarTurnoPayload {
+  nome: string;
+  horaInicio: number;
+  horaFim: number;
+  diasSemana: number[];
+}
+
+export async function listarTurnos(params: ListarTurnosParams = {}) {
+  const searchParams = new URLSearchParams();
+
+  searchParams.set('page', String(params.page ?? 1));
+  searchParams.set('limit', String(params.limit ?? 10));
+
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
+  }
+
+  const query = searchParams.toString();
+  return apiFetch<ApiPaginatedResponse<Turno[]>>(`/api/turnos?${query}`);
+}
+
+export async function buscarTurnoPorId(id: string) {
+  return apiFetch<ApiResponse<Turno>>(`/api/turnos/${id}`);
+}
+
+export async function criarTurno(payload: SalvarTurnoPayload) {
+  return apiFetch<ApiResponse<Turno>>('/api/turnos', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function atualizarTurno(id: string, payload: SalvarTurnoPayload) {
+  return apiFetch<ApiResponse<Turno>>(`/api/turnos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function excluirTurno(id: string) {
+  return apiFetch<void>(`/api/turnos/${id}`, {
+    method: 'DELETE',
+  });
+}
+</file>
+
+<file path="src/utils/time.ts">
+export function minutesToTime(minutes: number): string {
+  if (!Number.isFinite(minutes)) {
+    throw new Error('Valor de minutos inválido.');
+  }
+
+  const normalized = Math.max(0, Math.min(23 * 60 + 59, Math.floor(minutes)));
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+export function timeToMinutes(time: string): number {
+  const [hoursText, minutesText] = time.split(':');
+  const hours = Number(hoursText);
+  const minutes = Number(minutesText);
+
+  const isValid =
+    Number.isInteger(hours) &&
+    Number.isInteger(minutes) &&
+    hours >= 0 &&
+    hours <= 23 &&
+    minutes >= 0 &&
+    minutes <= 59;
+
+  if (!isValid) {
+    throw new Error('Horário inválido. Use o formato HH:MM.');
+  }
+
+  return hours * 60 + minutes;
+}
 </file>
 
 <file path="components.json">
@@ -3104,7 +6149,7 @@ export function useSocket() {
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -3527,76 +6572,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 </file>
 
-<file path="src/types/index.ts">
-// ─── Enums e tipos primitivos ──────────────────────────────────────────────
-
-export type PapelUsuario =
-  | 'ALUNO'
-  | 'PROFESSOR'
-  | 'FUNCIONARIO'
-  | 'COORDENADOR'
-  | 'GESTOR'
-  | 'VISITANTE';
-
-export type TipoDispositivo = 'CATRACA' | 'LEITOR_CARTAO';
-
-/** Status de um evento de acesso — deve bater com o enum do backend */
-export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
-
-// ─── Auth ──────────────────────────────────────────────────────────────────
-
-export interface LoginPayload {
-  email: string;
-  senha: string;
-}
-
-export interface JwtPayload {
-  sub: string;
-  papel: PapelUsuario;
-  nome: string;
-  exp?: number;
-}
-
-export interface TokenResponse {
-  accessToken: string;
-}
-
-// ─── Logs de Acesso ────────────────────────────────────────────────────────
-
-/**
- * Shape do evento `access:new` emitido pelo Socket.io do backend.
- * Campos opcionais refletem joins que o backend pode ou não incluir.
- */
-export interface AccessLog {
-  id: string;
-  usuarioId: string;
-  salaId: string;
-  tipo: TipoAcesso;
-  /** ISO 8601 string ou Date — use `new Date(log.horario)` para formatar */
-  horario: string | Date;
-  usuarioNome?: string;
-  salaNome?: string;
-}
-
-export type StatusDispositivo = 'ATIVO' | 'INATIVO' | 'MANUTENCAO';
-
-export interface Device {
-  id: string;
-  nome: string;
-  tipo: TipoDispositivo;
-  status: StatusDispositivo;
-  enderecoMac: string;
-  ipLocal?: string;
-  salaId: string;
-}
-
-export interface Sala {
-  id: string;
-  nome: string;
-  bloco?: string;
-}
-</file>
-
 <file path="package.json">
 {
   "name": "syngate-frontend",
@@ -3641,6 +6616,7 @@ export interface Sala {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
@@ -3652,6 +6628,151 @@ export interface Sala {
 }
 </file>
 
+<file path="src/types/index.ts">
+// ─── Enums e tipos primitivos ──────────────────────────────────────────────
+
+export type PapelUsuario =
+  | 'ALUNO'
+  | 'PROFESSOR'
+  | 'FUNCIONARIO'
+  | 'COORDENADOR'
+  | 'GESTOR'
+  | 'VISITANTE';
+
+export type TipoDispositivo = 'CATRACA' | 'LEITOR_CARTAO';
+
+/** Status de um evento de acesso — deve bater com o enum do backend */
+export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
+
+export interface LoginPayload {
+  email: string;
+  senha: string;
+}
+
+export interface JwtPayload {
+  sub: string;
+  papel: PapelUsuario;
+  nome: string;
+  exp?: number;
+}
+
+export interface TokenResponse {
+  accessToken: string;
+}
+
+// ─── Logs de Acesso (Socket.io) ────────────────────────────────────────────
+
+export interface AccessLog {
+  id: string;
+  usuarioId: string;
+  salaId: string;
+  tipo: TipoAcesso;
+  horario: string | Date;
+  usuarioNome?: string;
+  salaNome?: string;
+}
+
+// ─── Logs de Acesso (Relatórios / API REST) ────────────────────────────────
+
+export interface AccessLogDetail {
+  id: string;
+  dataHora: string;
+  status: TipoAcesso;
+  direcao: string;
+  motivo?: string | null;
+  uidCartao?: string | null;
+  usuario?: {
+    nome: string;
+    papel: PapelUsuario;
+    matricula: string;
+  } | null;
+  dispositivo: {
+    nome: string;
+    sala: {
+      nome: string;
+      bloco?: string;
+    };
+  };
+}
+
+// ─── Relatórios ────────────────────────────────────────────────────────────
+
+export interface ReportFilters {
+  dataInicio?: string;
+  dataFim?: string;
+  status?: string;
+  usuarioId?: string;
+  dispositivoId?: string;
+}
+
+/** Shape real retornado pelo backend em GET /reports/dashboard */
+export interface DashboardReportResponse {
+  resumo: {
+    totalAcessos: number;
+    porStatus: { status: string; _count: number }[];
+    porDirecao: { direcao: string; _count: number }[];
+  };
+  detalhes: AccessLogDetail[];
+}
+
+// ─── Dispositivos ──────────────────────────────────────────────────────────
+
+export type StatusDispositivo = 'ATIVO' | 'INATIVO' | 'MANUTENCAO';
+
+export interface Device {
+  id: string;
+  nome: string;
+  tipo: TipoDispositivo;
+  status: StatusDispositivo;
+  enderecoMac: string;
+  ipLocal?: string;
+  salaId: string;
+}
+
+export interface Sala {
+  id: string;
+  nome: string;
+  bloco?: string;
+}
+</file>
+
+<file path="src/middleware.ts">
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// Rotas públicas que não precisam de autenticação
+const PUBLIC_PATHS = ['/login', '/verificar-email'];
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Permite rotas públicas e assets
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Permite rotas de API internas (proxy para o backend)
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
+  // Todas as demais rotas exigem autenticação
+  const token = request.cookies.get('syngate_token')?.value;
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  // Aplica o middleware em todas as rotas exceto arquivos estáticos
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)'],
+};
+</file>
+
 <file path="src/components/layout/sidebar.tsx">
 'use client';
 
@@ -3660,7 +6781,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { 
-  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X
+  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, Clock3, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -3678,12 +6799,14 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const menuItems = [
-    { name: 'Painel',        href: '/dashboard',               icon: Activity,  roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
-    { name: 'Usuários',      href: '/dashboard/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Salas',         href: '/dashboard/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos',  href: '/dashboard/devices',  icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
-    { name: 'Relatórios',    href: '/dashboard/reports',    icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Painel',        href: '/dashboard',     icon: Activity,  roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Perfil',        href: '/perfil',        icon: User,      roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Usuários',      href: '/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Turnos',        href: '/turnos',        icon: Clock3,    roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Salas',         href: '/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Dispositivos',  href: '/devices',       icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Relatórios',    href: '/reports',       icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Configurações', href: '/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
   ];
 
   const visibleItems = menuItems.filter(item => papel && item.roles.includes(papel));
@@ -3693,13 +6816,11 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
       onMouseEnter={() => setIsCollapsed(false)}
       onMouseLeave={() => setIsCollapsed(true)}
       className={cn(
-        // bg-[#0d1f3c] → mesmo azul do header no dark mode; border-[#1a3a6b] → mesma borda
         "fixed inset-y-0 left-0 z-50 flex-col bg-[#0d1f3c] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-[#1a3a6b]",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
         !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
       )}
     >
-      {/* ── ELEMENTOS DE DESIGN ── */}
       <div 
         className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
         style={{
@@ -3716,7 +6837,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         }}
       />
 
-      {/* ── LOGO ── */}
       <div className={cn(
         "relative z-10 flex h-20 items-center border-b border-white/10 shrink-0 bg-transparent transition-all duration-300",
         isCollapsed ? "justify-center px-0" : "justify-between px-6"
@@ -3737,7 +6857,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         </button>
       </div>
       
-      {/* ── NAV ── */}
       <nav className="relative z-10 flex-1 py-6 space-y-7 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
         {['Menu', 'Administração'].map(groupName => {
           const items = visibleItems.filter(i => i.group === groupName);
@@ -3754,7 +6873,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
               
               <div className="space-y-1">
                 {items.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                   return (
                     <Link
                       key={item.href}
@@ -3776,18 +6895,12 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
                         {isActive && (
                           <motion.div
                             layoutId="activeSidebarTab"
-                            className={cn(
-                              "absolute inset-0 bg-white/10",
-                              isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]"
-                            )}
+                            className={cn("absolute inset-0 bg-white/10", isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]")}
                             initial={false}
                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                           />
                         )}
-                        <item.icon className={cn(
-                          "h-[18px] w-[18px] relative z-10 shrink-0",
-                          isActive ? "text-[#f47920]" : "text-white/40"
-                        )} />
+                        <item.icon className={cn("h-[18px] w-[18px] relative z-10 shrink-0", isActive ? "text-[#f47920]" : "text-white/40")} />
                         <span className={cn(
                           "relative z-10 tracking-wide whitespace-nowrap overflow-hidden transition-all duration-300",
                           isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
@@ -3804,7 +6917,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         })}
       </nav>
 
-      {/* ── RODAPÉ ── */}
       <div className="relative z-10 p-4 text-center mt-auto pb-6">
         <p className="text-[10px] text-white/80 tracking-widest uppercase font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
           {isCollapsed ? "PE" : "Senac PE · 2026"}

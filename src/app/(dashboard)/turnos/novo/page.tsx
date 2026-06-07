@@ -19,19 +19,23 @@ export default function NovoTurnoPage() {
       router.push('/turnos');
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Nao foi possivel criar o turno.';
+      const message = error instanceof Error ? error.message : 'Não foi possível criar o turno.';
       toast.error(message);
     },
   });
 
   return (
     <div className="p-6 md:p-8">
-      <Card>
+      <Card className="bg-card border-border min-h-[520px]">
         <CardHeader>
-          <CardTitle>Novo turno</CardTitle>
+          <CardTitle className="text-foreground">Novo turno</CardTitle>
         </CardHeader>
         <CardContent>
-          <TurnoForm modo="criar" onSubmit={createMutation.mutateAsync} isSubmitting={createMutation.isPending} />
+          <TurnoForm
+            modo="criar"
+            onSubmit={createMutation.mutateAsync}
+            isSubmitting={createMutation.isPending}
+          />
         </CardContent>
       </Card>
     </div>

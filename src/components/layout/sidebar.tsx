@@ -40,7 +40,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
       onMouseEnter={() => setIsCollapsed(false)}
       onMouseLeave={() => setIsCollapsed(true)}
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex-col bg-[#0d1f3c] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-[#1a3a6b]",
+        "fixed inset-y-0 left-0 z-50 flex-col bg-[var(--color-sidebar)] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-[var(--color-sidebar-border)]",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
         !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
       )}
@@ -49,7 +49,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
         style={{
           clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
-          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 8%, transparent 80%)',
+          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 8%, transparent 76%)',
           boxShadow: 'inset 0 0 20px rgba(244,121,32,0.5)'
         }}
       />

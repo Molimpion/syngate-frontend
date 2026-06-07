@@ -28,7 +28,7 @@ interface RoomFormProps {
   modo: 'criar' | 'editar';
   valoresIniciais?: Sala;
   isSubmitting?: boolean;
-  onSubmit: (values: SalvarSalaPayload) => Promise<void>;
+  onSubmit: (values: SalvarSalaPayload) => Promise<unknown>;
 }
 
 export function RoomForm({ modo, valoresIniciais, isSubmitting, onSubmit }: RoomFormProps) {
@@ -64,7 +64,7 @@ export function RoomForm({ modo, valoresIniciais, isSubmitting, onSubmit }: Room
             <FormItem>
               <FormLabel>Nome da sala</FormLabel>
               <FormControl>
-                <Input placeholder="Ex: Laboratorio 01" {...field} />
+                <Input placeholder="Ex: Laboratório 01" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -86,8 +86,12 @@ export function RoomForm({ modo, valoresIniciais, isSubmitting, onSubmit }: Room
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : modo === 'criar' ? 'Criar sala' : 'Salvar alteracoes'}
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+          >
+            {isSubmitting ? 'Salvando...' : modo === 'criar' ? 'Criar sala' : 'Salvar alterações'}
           </Button>
           <Button asChild variant="outline" type="button">
             <Link href="/salas">Cancelar</Link>

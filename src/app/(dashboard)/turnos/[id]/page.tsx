@@ -5,11 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { TurnoForm } from '@/components/turnos/TurnoForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  atualizarTurno,
-  buscarTurnoPorId,
-  type SalvarTurnoPayload,
-} from '@/services/turnos.service';
+import { atualizarTurno, buscarTurnoPorId, type SalvarTurnoPayload } from '@/services/turnos.service';
 
 export default function EditarTurnoPage() {
   const params = useParams<{ id: string }>();
@@ -34,22 +30,22 @@ export default function EditarTurnoPage() {
       router.push('/turnos');
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Nao foi possivel atualizar o turno.';
+      const message = error instanceof Error ? error.message : 'Não foi possível atualizar o turno.';
       toast.error(message);
     },
   });
 
   return (
     <div className="p-6 md:p-8">
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Editar turno</CardTitle>
+          <CardTitle className="text-foreground">Editar turno</CardTitle>
         </CardHeader>
         <CardContent>
           {turnoQuery.isLoading ? (
-            <p className="text-sm text-slate-500">Carregando turno...</p>
+            <p className="text-sm text-muted-foreground">Carregando turno...</p>
           ) : turnoQuery.isError || !turnoQuery.data?.data ? (
-            <p className="text-sm text-destructive">Nao foi possivel carregar os dados do turno.</p>
+            <p className="text-sm text-destructive">Não foi possível carregar os dados do turno.</p>
           ) : (
             <TurnoForm
               modo="editar"

@@ -9,12 +9,14 @@ import { criarSala, type SalvarSalaPayload } from '@/services/salas.service';
 
 function getSalaErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
-
-  if (message.includes('duplic') || message.includes('ja existe') || (message.includes('nome') && message.includes('bloco'))) {
-    return 'Ja existe uma sala com esse nome nesse bloco.';
+  if (
+    message.includes('duplic') ||
+    message.includes('ja existe') ||
+    (message.includes('nome') && message.includes('bloco'))
+  ) {
+    return 'Já existe uma sala com esse nome nesse bloco.';
   }
-
-  return 'Nao foi possivel criar a sala.';
+  return 'Não foi possível criar a sala.';
 }
 
 export default function NovaSalaPage() {
@@ -35,12 +37,16 @@ export default function NovaSalaPage() {
 
   return (
     <div className="p-6 md:p-8">
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Nova sala</CardTitle>
+          <CardTitle className="text-foreground">Nova sala</CardTitle>
         </CardHeader>
         <CardContent>
-          <RoomForm modo="criar" onSubmit={createMutation.mutateAsync} isSubmitting={createMutation.isPending} />
+          <RoomForm
+            modo="criar"
+            onSubmit={createMutation.mutateAsync}
+            isSubmitting={createMutation.isPending}
+          />
         </CardContent>
       </Card>
     </div>

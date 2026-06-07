@@ -1,44 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, KeySquare, Edit, RotateCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DevicesService } from '@/services/devices.service';
-import { Device } from '@/types';
+
+function StatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'ATIVO':      return <Badge className="bg-emerald-500 text-white">ATIVO</Badge>;
+    case 'INATIVO':    return <Badge className="bg-slate-400 text-white">INATIVO</Badge>;
+    case 'MANUTENCAO': return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700">MANUTENÇÃO</Badge>;
+    default:           return <Badge variant="outline">{status}</Badge>;
+  }
+}
 
 export default function DevicesPage() {
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ['devices'],
+    queryFn: () => DevicesService.listar(),
+  });
 
-  const loadDevices = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await DevicesService.listar();
-      setDevices(res.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar dispositivos');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadDevices();
-  }, []);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ATIVO':       return <Badge className="bg-emerald-500 text-white">ATIVO</Badge>;
-      case 'INATIVO':     return <Badge className="bg-slate-400 text-white">INATIVO</Badge>;
-      case 'MANUTENCAO':  return <Badge className="bg-yellow-500 text-white">MANUTENÇÃO</Badge>;
-      default:            return <Badge>{status}</Badge>;
-    }
-  };
+  const devices = data?.data ?? [];
 
   return (
     <div className="p-6">
@@ -48,30 +33,29 @@ export default function DevicesPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={loadDevices}
-            disabled={loading}
+            onClick={() => refetch()}
+            disabled={isFetching}
             title="Recarregar"
           >
-            <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RotateCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
           </Button>
-          <Link href="/dashboard/devices/new">
-            <Button className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+          <Button asChild className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+            <Link href="/devices/new">
               <Plus className="h-4 w-4 mr-2" /> Novo Dispositivo
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 
-      {error && (
+      {isError && (
         <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg mb-6">
           <p className="font-medium">Erro ao carregar dispositivos</p>
-          <p className="text-sm">{error}</p>
+          <p className="text-sm">{error instanceof Error ? error.message : 'Erro desconhecido'}</p>
         </div>
       )}
 
-      {/* bg-card + border-border respondem ao dark mode */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#f47920]" />
@@ -82,11 +66,11 @@ export default function DevicesPage() {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <p className="text-muted-foreground mb-4">Nenhum dispositivo cadastrado</p>
-              <Link href="/dashboard/devices/new">
-                <Button className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+              <Button asChild className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+                <Link href="/devices/new">
                   <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Dispositivo
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         ) : (
@@ -94,6 +78,7 @@ export default function DevicesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>MAC Address</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -103,20 +88,21 @@ export default function DevicesPage() {
               {devices.map((device) => (
                 <TableRow key={device.id}>
                   <TableCell className="font-medium text-foreground">{device.nome}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{device.tipo === 'CATRACA' ? 'Catraca' : 'Leitor de Cartão'}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{device.enderecoMac}</TableCell>
-                  <TableCell>{getStatusBadge(device.status)}</TableCell>
+                  <TableCell><StatusBadge status={device.status} /></TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Link href={`/dashboard/devices/${device.id}`}>
-                        <Button variant="ghost" size="icon-sm" title="Editar">
+                      <Button asChild variant="ghost" size="icon-sm" title="Editar">
+                        <Link href={`/devices/${device.id}`}>
                           <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Link href={`/dashboard/devices/${device.id}/provision`}>
-                        <Button variant="outline" size="icon-sm" className="text-[#004a99]" title="Provisionar Chave">
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="icon-sm" className="text-[#004a99]" title="Provisionar Chave">
+                        <Link href={`/devices/${device.id}/provision`}>
                           <KeySquare className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

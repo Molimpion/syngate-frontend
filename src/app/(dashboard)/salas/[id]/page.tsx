@@ -5,20 +5,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RoomForm } from '@/components/salas/RoomForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  atualizarSala,
-  buscarSalaPorId,
-  type SalvarSalaPayload,
-} from '@/services/salas.service';
+import { atualizarSala, buscarSalaPorId, type SalvarSalaPayload } from '@/services/salas.service';
 
 function getSalaErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
-
-  if (message.includes('duplic') || message.includes('ja existe') || (message.includes('nome') && message.includes('bloco'))) {
-    return 'Ja existe uma sala com esse nome nesse bloco.';
+  if (
+    message.includes('duplic') ||
+    message.includes('ja existe') ||
+    (message.includes('nome') && message.includes('bloco'))
+  ) {
+    return 'Já existe uma sala com esse nome nesse bloco.';
   }
-
-  return 'Nao foi possivel atualizar a sala.';
+  return 'Não foi possível atualizar a sala.';
 }
 
 export default function EditarSalaPage() {
@@ -50,15 +48,15 @@ export default function EditarSalaPage() {
 
   return (
     <div className="p-6 md:p-8">
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Editar sala</CardTitle>
+          <CardTitle className="text-foreground">Editar sala</CardTitle>
         </CardHeader>
         <CardContent>
           {salaQuery.isLoading ? (
-            <p className="text-sm text-slate-500">Carregando sala...</p>
+            <p className="text-sm text-muted-foreground">Carregando sala...</p>
           ) : salaQuery.isError || !salaQuery.data?.data ? (
-            <p className="text-sm text-destructive">Nao foi possivel carregar os dados da sala.</p>
+            <p className="text-sm text-destructive">Não foi possível carregar os dados da sala.</p>
           ) : (
             <RoomForm
               modo="editar"

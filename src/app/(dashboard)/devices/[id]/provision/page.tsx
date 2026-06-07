@@ -31,7 +31,7 @@ export default function ProvisionPage() {
 
   const handleClose = () => {
     setRawKey(null);
-    router.push('/dashboard/devices');
+    router.push('/devices');
   };
 
   return (
@@ -41,7 +41,6 @@ export default function ProvisionPage() {
       {rawKey ? (
         <RawKeyDisplay rawKey={rawKey} onClose={handleClose} />
       ) : (
-        // bg-card + border-border respondem ao dark mode
         <div className="bg-card p-8 rounded-xl border border-border shadow-sm max-w-2xl text-center space-y-4">
           <div className="mx-auto bg-muted w-16 h-16 rounded-full flex items-center justify-center mb-4">
             <KeySquare className="h-8 w-8 text-[#004a99]" />
