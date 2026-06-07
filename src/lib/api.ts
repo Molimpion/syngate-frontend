@@ -1,6 +1,7 @@
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const isServer = typeof window === 'undefined';
-  const baseUrl = isServer ? process.env.API_URL : '/api/proxy';
+  const isInternalApiRoute = endpoint.startsWith('/api/');
+  const baseUrl = isInternalApiRoute ? '' : isServer ? process.env.API_URL : '/api/proxy';
   
   const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
@@ -10,6 +11,15 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
+
+    if (response.status === 401) {
+      throw new Error(errorData?.message || 'Sessão expirada. Faça login novamente.');
+    }
+
+    if (response.status === 403) {
+      throw new Error(errorData?.message || 'Acesso negado para esta operação.');
+    }
+
     throw new Error(errorData?.message || 'Erro na requisição.');
   }
 
