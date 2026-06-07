@@ -2,7 +2,7 @@
 @plugin "tailwindcss-animate";
 
 @theme {
-  /* Cores do Sistema (Estilo Senac/Corporativo) */
+  /* ── Cores Light (padrão) ─────────────────────────────────── */
   --color-background: #ffffff;
   --color-foreground: #0f172a;
 
@@ -44,9 +44,46 @@
     @apply border-border;
     outline: none;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh;
+  }
+
+  /* ── Dark Mode ────────────────────────────────────────────────
+     Aplicado via classe .dark no <html> pelo next-themes.
+     Mantém o azul e laranja Senac — só muda os neutros.
+  ─────────────────────────────────────────────────────────────── */
+  .dark {
+    --color-background: #0d1117;
+    --color-foreground: #e2e8f0;
+
+    --color-card: #161b22;
+    --color-card-foreground: #e2e8f0;
+
+    --color-popover: #1c2128;
+    --color-popover-foreground: #e2e8f0;
+
+    /* Azul Senac — fica igual, só aumenta levemente o brilho */
+    --color-primary: #1a6fd4;
+    --color-primary-foreground: #f8fafc;
+
+    /* Laranja Senac — fica igual */
+    --color-secondary: #f47920;
+    --color-secondary-foreground: #ffffff;
+
+    --color-muted: #1c2128;
+    --color-muted-foreground: #8b949e;
+
+    --color-accent: #21262d;
+    --color-accent-foreground: #e2e8f0;
+
+    --color-destructive: #f87171;
+    --color-destructive-foreground: #0d1117;
+
+    --color-border: #30363d;
+    --color-input: #21262d;
+    --color-ring: #1a6fd4;
   }
 }
