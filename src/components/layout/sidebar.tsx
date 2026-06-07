@@ -20,39 +20,36 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { session } = useSession();
   const papel = session?.papel;
   
-  // Estado que controla se a sidebar está expandida ou recolhida
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const menuItems = [
-    { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
-    { name: 'Perfil', href: '/perfil', icon: User, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
-    { name: 'Usuários', href: '/usuarios', icon: Users, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Turnos', href: '/turnos', icon: Clock3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Salas', href: '/salas', icon: DoorOpen, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos', href: '/dashboard/dispositivos', icon: Network, roles: ['GESTOR'], group: 'Administração' },
-    { name: 'Relatórios', href: '/dashboard/relatorios', icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'], group: 'Administração' },
+    { name: 'Painel',        href: '/dashboard',     icon: Activity,  roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Perfil',        href: '/perfil',        icon: User,      roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Usuários',      href: '/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Turnos',        href: '/turnos',        icon: Clock3,    roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Salas',         href: '/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Dispositivos',  href: '/devices',       icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Relatórios',    href: '/reports',       icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Configurações', href: '/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
   ];
 
   const visibleItems = menuItems.filter(item => papel && item.roles.includes(papel));
 
   return (
     <aside 
-      // Adicionamos os eventos de mouse aqui
       onMouseEnter={() => setIsCollapsed(false)}
       onMouseLeave={() => setIsCollapsed(true)}
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex-col bg-gradient-to-b from-[#003d7d] to-[#002a5a] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-white/5",
+        "fixed inset-y-0 left-0 z-50 flex-col bg-[#0d1f3c] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-[#1a3a6b]",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
         !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
       )}
     >
-      {/* ── ELEMENTOS DE DESIGN EXCLUSIVOS ── */}
       <div 
         className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
         style={{
-         clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
-          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 08%, transparent 80%)',
+          clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
+          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 8%, transparent 80%)',
           boxShadow: 'inset 0 0 20px rgba(244,121,32,0.5)'
         }}
       />
@@ -64,7 +61,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         }}
       />
 
-      {/* ── CONTEÚDO ── */}
       <div className={cn(
         "relative z-10 flex h-20 items-center border-b border-white/10 shrink-0 bg-transparent transition-all duration-300",
         isCollapsed ? "justify-center px-0" : "justify-between px-6"
@@ -77,7 +73,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           <span className="text-[#f47920]">.</span>
         </span>
         
-        {/* O botão manual de fechar continua funcionando para mobile */}
         <button 
           onClick={() => setIsMobileOpen(false)} 
           className="md:hidden text-white/70 hover:text-white p-1 transition-colors rounded-md hover:bg-white/5"
@@ -102,7 +97,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
               
               <div className="space-y-1">
                 {items.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                   return (
                     <Link
                       key={item.href}
