@@ -8,7 +8,8 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/usuarios') ||
     request.nextUrl.pathname.startsWith('/turnos') ||
-    request.nextUrl.pathname.startsWith('/salas')
+    request.nextUrl.pathname.startsWith('/salas') ||
+    request.nextUrl.pathname.startsWith('/perfil')
   ) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url));
@@ -19,5 +20,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/usuarios/:path*', '/turnos/:path*', '/salas/:path*'],
+  matcher: ['/dashboard/:path*', '/usuarios/:path*', '/turnos/:path*', '/salas/:path*', '/perfil/:path*'],
 };
