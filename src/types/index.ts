@@ -1,12 +1,19 @@
-export type PapelUsuario = 
-  | 'ALUNO' 
-  | 'PROFESSOR' 
-  | 'FUNCIONARIO' 
-  | 'COORDENADOR' 
-  | 'GESTOR' 
+// ─── Enums e tipos primitivos ──────────────────────────────────────────────
+
+export type PapelUsuario =
+  | 'ALUNO'
+  | 'PROFESSOR'
+  | 'FUNCIONARIO'
+  | 'COORDENADOR'
+  | 'GESTOR'
   | 'VISITANTE';
 
 export type TipoDispositivo = 'CATRACA' | 'LEITOR_QR' | 'TOTEM';
+
+/** Status de um evento de acesso — deve bater com o enum do backend */
+export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
 
 export interface LoginPayload {
   email: string;
@@ -24,13 +31,18 @@ export interface TokenResponse {
   accessToken: string;
 }
 
-export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
+// ─── Logs de Acesso ────────────────────────────────────────────────────────
 
+/**
+ * Shape do evento `access:new` emitido pelo Socket.io do backend.
+ * Campos opcionais refletem joins que o backend pode ou não incluir.
+ */
 export interface AccessLog {
   id: string;
   usuarioId: string;
   salaId: string;
   tipo: TipoAcesso;
+  /** ISO 8601 string ou Date — use `new Date(log.horario)` para formatar */
   horario: string | Date;
   usuarioNome?: string;
   salaNome?: string;

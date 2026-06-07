@@ -97,6 +97,7 @@ src/
   styles/
     globals.css
   types/
+    global.d.ts
     index.ts
   middleware.ts
 .commitlintrc.json
@@ -114,6 +115,10 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/types/global.d.ts">
+declare module '*.css';
+</file>
 
 <file path=".husky/commit-msg">
 npx --no -- commitlint --edit "$1"
@@ -1789,15 +1794,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-white">
+    // bg-background cobre light (#fff) e dark (#0d1117)
+    <div className="relative flex h-screen w-full overflow-hidden bg-background">
 
-      {/* ── PAINEL ESQUERDO ───────────────────────────────────────── */}
+      {/* ── PAINEL ESQUERDO (decorativo) ─────────────────────────── */}
       <div className="relative hidden w-[52%] shrink-0 lg:block">
-
-        {/* Fundo azul escuro com degradê */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#003d7d] to-[#002a5a]" />
 
-        {/* Bloco laranja menor com degradê para transparente */}
         <motion.div
           initial={{ x: -80, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -1805,11 +1808,10 @@ export default function LoginPage() {
           className="absolute left-0 top-0 h-full w-[65%]"
           style={{
             clipPath: 'polygon(0 0, 100% 0, 78% 100%, 0 100%)',
-            background: 'linear-gradient(100deg, #f47920 0%, #e8621a 08%, transparent 76%)',
+            background: 'linear-gradient(100deg, #f47920 0%, #e8621a 8%, transparent 76%)',
           }}
         />
 
-        {/* Grade de pontos decorativa */}
         <div
           className="absolute inset-0 opacity-[0.10]"
           style={{
@@ -1818,9 +1820,7 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Conteúdo */}
         <div className="relative z-10 flex h-full flex-col justify-between p-14">
-
           <motion.div
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1837,7 +1837,7 @@ export default function LoginPage() {
               className="text-5xl font-bold leading-tight tracking-tight text-white"
             >
               Controle de<br />
-              <span className="opacity-100">acesso</span><br />
+              acesso<br />
               inteligente.
             </motion.h1>
 
@@ -1882,8 +1882,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── PAINEL DIREITO ────────────────────────────────────────── */}
-      <div className="flex flex-1 items-center justify-center bg-white px-8">
+      {/* ── PAINEL DIREITO (formulário) ───────────────────────────── */}
+      {/* bg-background + text-foreground cobrem light e dark */}
+      <div className="flex flex-1 items-center justify-center bg-background px-8">
         <motion.div
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1894,20 +1895,19 @@ export default function LoginPage() {
             <p className="text-xs font-bold uppercase tracking-widest text-[#f47920]">
               Portal de acesso
             </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
               Entrar
             </h2>
-            <p className="mt-1.5 text-sm text-slate-400">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Bem-vindo(a) de volta. Insira seus dados.
             </p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-
             <div className="space-y-1.5">
               <Label
                 htmlFor="email"
-                className="text-[11px] font-bold uppercase tracking-wider text-slate-900"
+                className="text-[11px] font-bold uppercase tracking-wider text-foreground"
               >
                 E-mail
               </Label>
@@ -1915,7 +1915,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
-                className="h-12 rounded-lg border border-slate-200 !bg-white text-slate-900 placeholder:text-slate-400 transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
+                className="h-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
                 {...register('email')}
               />
               {errors.email && (
@@ -1926,7 +1926,7 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <Label
                 htmlFor="senha"
-                className="text-[11px] font-bold uppercase tracking-wider text-slate-900"
+                className="text-[11px] font-bold uppercase tracking-wider text-foreground"
               >
                 Senha
               </Label>
@@ -1934,7 +1934,7 @@ export default function LoginPage() {
                 id="senha"
                 type="password"
                 placeholder="••••••••"
-                className="h-12 rounded-lg border border-slate-200 !bg-white text-slate-900 placeholder:text-slate-400 transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
+                className="h-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
                 {...register('senha')}
               />
               {errors.senha && (
@@ -1949,110 +1949,20 @@ export default function LoginPage() {
             >
               {isSubmitting ? 'Verificando...' : 'Acessar Sistema'}
             </Button>
-
           </form>
 
           <div className="mt-6 text-center">
-            <button className="text-sm text-slate-400 transition-colors hover:text-[#f47920]">
+            <button className="text-sm text-muted-foreground transition-colors hover:text-[#f47920]">
               Problemas com o acesso?
             </button>
           </div>
 
           <div className="mt-10 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-100" />
-            <span className="text-[10px] uppercase tracking-widest text-slate-300">Senac PE · 2026</span>
-            <div className="h-px flex-1 bg-slate-100" />
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Senac PE · 2026</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
-
         </motion.div>
-      </div>
-
-    </div>
-  );
-}
-</file>
-
-<file path="src/app/(dashboard)/dashboard/page.tsx">
-// src/app/(dashboard)/dashboard/page.tsx
-'use client';
-
-import { Activity, ShieldCheck, Cpu, ArrowUpRight } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { StatsCards } from '@/components/dashboard/StatsCards';
-import { AccessFeed } from '@/components/dashboard/AccessFeed';
-
-export default function DashboardPage() {
-  return (
-    <div className="p-8 bg-slate-50 min-h-screen">
-      {/* Barra de Status Operacional */}
-      <div className="mb-8 flex items-center justify-between p-4 bg-[#004a99] rounded-xl text-white shadow-lg shadow-blue-900/20">
-        <div className="flex items-center gap-4">
-          <div className="p-2 bg-white/10 rounded-lg">
-            <Activity className="h-6 w-6 text-white animate-pulse" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-lg">Sistema Syngate Ativo</h2>
-            <p className="text-blue-200 text-sm">Monitoramento em tempo real operando com latência mínima.</p>
-          </div>
-        </div>
-        <div className="hidden md:flex gap-6 border-l border-white/20 pl-6">
-          <div className="text-center">
-            <span className="block text-2xl font-bold">99.9%</span>
-            <span className="text-[10px] uppercase tracking-wider text-blue-200">Uptime</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <StatsCards />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Feed de Acessos */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-             <h3 className="text-lg font-bold text-slate-800">Fluxo de Acessos</h3>
-             <button className="text-xs font-semibold text-[#f47920] flex items-center gap-1 hover:underline">
-               Ver Relatório <ArrowUpRight className="h-3 w-3" />
-             </button>
-          </div>
-          <Card className="border-none shadow-sm shadow-slate-200/50">
-            <CardContent className="pt-6">
-              <AccessFeed />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Painel Lateral de Ferramentas */}
-        <div className="space-y-6">
-           <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
-             <div className="flex items-center gap-3 mb-4 text-[#004a99]">
-               <ShieldCheck className="h-6 w-6" />
-               <h3 className="font-bold">Segurança</h3>
-             </div>
-             <p className="text-sm text-slate-500 mb-6">Última auditoria de logs realizada recentemente.</p>
-             <button className="w-full py-2 bg-[#f47920] hover:bg-[#d96b1c] text-white rounded-lg text-sm font-semibold transition-colors">
-               Executar Auditoria
-             </button>
-           </div>
-
-           <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
-             <div className="flex items-center gap-3 mb-4 text-[#004a99]">
-               <Cpu className="h-6 w-6" />
-               <h3 className="font-bold">Infraestrutura</h3>
-             </div>
-             <div className="space-y-3">
-               <div className="flex justify-between text-sm">
-                 <span className="text-slate-500">Servidor API</span>
-                 <span className="font-medium text-emerald-600">Online</span>
-               </div>
-               <div className="flex justify-between text-sm">
-                 <span className="text-slate-500">Banco de Dados</span>
-                 <span className="font-medium text-emerald-600">Online</span>
-               </div>
-             </div>
-           </div>
-        </div>
       </div>
     </div>
   );
@@ -2060,7 +1970,6 @@ export default function DashboardPage() {
 </file>
 
 <file path="src/app/(dashboard)/layout.tsx">
-// src/app/(dashboard)/layout.tsx
 'use client';
 
 import { useState } from 'react';
@@ -2071,17 +1980,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* Overlay escuro em resoluções menores */}
+    // bg-background → #fff no light, #0d1117 no dark (via variável CSS)
+    <div className="flex h-screen overflow-hidden bg-background">
       {isMobileOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-slate-900/50 md:hidden transition-opacity"
+        <div
+          className="fixed inset-0 z-40 bg-foreground/30 md:hidden transition-opacity"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
-      
+
       <Sidebar isMobileOpen={isMobileOpen} setIsMobileOpen={setIsMobileOpen} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden w-full relative">
         <Header onMenuClick={() => setIsMobileOpen(!isMobileOpen)} />
         <main className="flex-1 overflow-y-auto">{children}</main>
@@ -2096,126 +2005,6 @@ import { redirect } from 'next/navigation';
 
 export default function Home() {
   redirect('/dashboard');
-}
-</file>
-
-<file path="src/components/dashboard/AccessFeed.tsx">
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useSocket } from '@/hooks/useSocket';
-import { AccessLog } from '@/types';
-
-export function AccessFeed() {
-  const { socket } = useSocket();
-  const [logs, setLogs] = useState<AccessLog[]>([]);
-
-  useEffect(() => {
-    // A segurança essencial: se socket for null, não faz nada
-    if (!socket) return;
-
-    const handleNewAccess = (newLog: AccessLog) => {
-      setLogs((prev) => [newLog, ...prev].slice(0, 50));
-    };
-
-    // Agora o TypeScript e o Runtime sabem que socket existe
-    socket.on('access:new', handleNewAccess);
-
-    // Limpeza ao desmontar
-    return () => {
-      socket.off('access:new', handleNewAccess);
-    };
-  }, [socket]); // O useEffect depende do socket
-
-  return (
-    <div className="space-y-4">
-      {logs.length === 0 ? (
-        <p className="text-sm text-slate-400">Aguardando novos acessos...</p>
-      ) : (
-        logs.map((log) => (
-          <div key={log.id} className="text-sm p-2 border-b border-slate-100">
-             {log.usuarioNome} - {log.tipo} ({new Date(log.horario).toLocaleTimeString()})
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-</file>
-
-<file path="src/components/layout/header.tsx">
-// src/components/layout/header.tsx
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useSession } from '@/hooks/useSession';
-import { logoutAction } from '@/actions/auth';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
-import { LogOut, User, Menu, Moon, Sun } from 'lucide-react';
-
-interface HeaderProps {
-  onMenuClick: () => void;
-}
-
-export function Header({ onMenuClick }: HeaderProps) {
-  const { session } = useSession();
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    setIsDarkMode(document.documentElement.classList.contains('dark'));
-  }, []);
-
-  const toggleTheme = () => {
-    const isDark = document.documentElement.classList.toggle('dark');
-    setIsDarkMode(isDark);
-  };
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-  };
-
-  return (
-    <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between md:justify-end px-4 md:px-6 shadow-sm shrink-0">
-      
-      <button onClick={onMenuClick} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md">
-        <Menu className="h-6 w-6" />
-      </button>
-
-      <div className="flex items-center gap-4 ml-auto">
-        <button onClick={toggleTheme} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-          {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger className="focus:outline-none">
-            <div className="h-10 w-10 rounded-full border-2 border-[#f47920] bg-white flex items-center justify-center text-[#004a99] font-bold text-sm shadow-sm hover:bg-slate-50 transition-all cursor-pointer">
-              {session?.nome ? getInitials(session.nome) : <User className="h-5 w-5" />}
-            </div>
-          </DropdownMenuTrigger>
-          
-          <DropdownMenuContent align="end" className="w-56 mt-2 border-slate-200">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium text-slate-900">{session?.nome || 'Usuário'}</p>
-                <p className="text-xs text-slate-500">Nível: {session?.papel}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logoutAction()} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer font-medium">
-              <LogOut className="mr-2 h-4 w-4" /> Sair do Sistema
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
-  );
 }
 </file>
 
@@ -2290,7 +2079,8 @@ export { Button, buttonVariants }
 </file>
 
 <file path="src/hooks/useSocket.ts">
-// src/hooks/useSocket.ts
+'use client';
+
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -2299,15 +2089,20 @@ export function useSocket() {
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SOCKET_URL;
-    
+
     if (!url) {
-      console.warn("⚠️ NEXT_PUBLIC_SOCKET_URL não definida. WebSocket offline.");
+      console.warn('NEXT_PUBLIC_SOCKET_URL não definida. WebSocket offline.');
       return;
     }
 
     const socketInstance = io(url, {
       transports: ['websocket'],
+      withCredentials: true, // envia o cookie HttpOnly para autenticar no socket
       autoConnect: true,
+    });
+
+    socketInstance.on('connect_error', (err) => {
+      console.error('Socket.io connection error:', err.message);
     });
 
     setSocket(socketInstance);
@@ -2326,7 +2121,7 @@ export function useSocket() {
 @plugin "tailwindcss-animate";
 
 @theme {
-  /* Cores do Sistema (Estilo Senac/Corporativo) */
+  /* ── Cores Light (padrão) ─────────────────────────────────── */
   --color-background: #ffffff;
   --color-foreground: #0f172a;
 
@@ -2368,24 +2163,68 @@ export function useSocket() {
     @apply border-border;
     outline: none;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh;
   }
+
+  /* ── Dark Mode ────────────────────────────────────────────────
+     Aplicado via classe .dark no <html> pelo next-themes.
+     Mantém o azul e laranja Senac — só muda os neutros.
+  ─────────────────────────────────────────────────────────────── */
+  .dark {
+    --color-background: #0d1117;
+    --color-foreground: #e2e8f0;
+
+    --color-card: #161b22;
+    --color-card-foreground: #e2e8f0;
+
+    --color-popover: #1c2128;
+    --color-popover-foreground: #e2e8f0;
+
+    /* Azul Senac — fica igual, só aumenta levemente o brilho */
+    --color-primary: #1a6fd4;
+    --color-primary-foreground: #f8fafc;
+
+    /* Laranja Senac — fica igual */
+    --color-secondary: #f47920;
+    --color-secondary-foreground: #ffffff;
+
+    --color-muted: #1c2128;
+    --color-muted-foreground: #8b949e;
+
+    --color-accent: #21262d;
+    --color-accent-foreground: #e2e8f0;
+
+    --color-destructive: #f87171;
+    --color-destructive-foreground: #0d1117;
+
+    --color-border: #30363d;
+    --color-input: #21262d;
+    --color-ring: #1a6fd4;
+  }
 }
 </file>
 
 <file path="src/types/index.ts">
-export type PapelUsuario = 
-  | 'ALUNO' 
-  | 'PROFESSOR' 
-  | 'FUNCIONARIO' 
-  | 'COORDENADOR' 
-  | 'GESTOR' 
+// ─── Enums e tipos primitivos ──────────────────────────────────────────────
+
+export type PapelUsuario =
+  | 'ALUNO'
+  | 'PROFESSOR'
+  | 'FUNCIONARIO'
+  | 'COORDENADOR'
+  | 'GESTOR'
   | 'VISITANTE';
 
 export type TipoDispositivo = 'CATRACA' | 'LEITOR_QR' | 'TOTEM';
+
+/** Status de um evento de acesso — deve bater com o enum do backend */
+export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
 
 export interface LoginPayload {
   email: string;
@@ -2403,13 +2242,18 @@ export interface TokenResponse {
   accessToken: string;
 }
 
-export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
+// ─── Logs de Acesso ────────────────────────────────────────────────────────
 
+/**
+ * Shape do evento `access:new` emitido pelo Socket.io do backend.
+ * Campos opcionais refletem joins que o backend pode ou não incluir.
+ */
 export interface AccessLog {
   id: string;
   usuarioId: string;
   salaId: string;
   tipo: TipoAcesso;
+  /** ISO 8601 string ou Date — use `new Date(log.horario)` para formatar */
   horario: string | Date;
   usuarioNome?: string;
   salaNome?: string;
@@ -2476,94 +2320,410 @@ export default config;
 export default {};
 </file>
 
-<file path="src/components/layout/sidebar.tsx">
+<file path="src/app/(dashboard)/dashboard/page.tsx">
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useSession } from '@/hooks/useSession';
-import { 
-  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Activity, ShieldCheck, Cpu, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { StatsCards } from '@/components/dashboard/StatsCards';
+import { AccessFeed } from '@/components/dashboard/AccessFeed';
+import { motion, Variants } from 'framer-motion';
 
-interface SidebarProps {
-  isMobileOpen: boolean;
-  setIsMobileOpen: (open: boolean) => void;
-}
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+};
 
-export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
-  const pathname = usePathname();
-  const { session } = useSession();
-  const papel = session?.papel;
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+};
 
-  const menuItems = [
-    { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
-    { name: 'Usuários', href: '/dashboard/usuarios', icon: Users, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Salas', href: '/dashboard/salas', icon: DoorOpen, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos', href: '/dashboard/dispositivos', icon: Network, roles: ['GESTOR'], group: 'Administração' },
-    { name: 'Relatórios', href: '/dashboard/relatorios', icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'], group: 'Administração' },
-  ];
-
-  const visibleItems = menuItems.filter(item => papel && item.roles.includes(papel));
-
+export default function DashboardPage() {
   return (
-    <aside 
-      className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 flex-col bg-gradient-to-b from-[#004a99] to-[#002f63] text-white transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex shrink-0",
-        isMobileOpen ? "translate-x-0" : "-translate-x-full"
-      )}
+    // bg-background → #fff light / #0d1117 dark
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="p-6 md:p-8 bg-background min-h-screen"
     >
-      {/* Branding */}
-      <div className="flex h-16 items-center justify-between px-6 border-b border-white/10 shrink-0">
-        <span className="text-xl font-bold tracking-widest text-white/90">SYNGATE</span>
-        <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-blue-200 hover:text-white p-1">
-          <X className="h-6 w-6" />
-        </button>
-      </div>
-      
-      <nav className="flex-1 p-4 space-y-8 overflow-y-auto">
-        {['Menu', 'Administração'].map(groupName => {
-          const items = visibleItems.filter(i => i.group === groupName);
-          if (items.length === 0) return null;
+      {/* ── BARRA DE STATUS ─────────────────────────────────────────── */}
+      <motion.div
+        variants={itemVariants}
+        className="mb-8 relative overflow-hidden rounded-2xl bg-[#002a5a] border border-blue-900/30 shadow-lg shadow-blue-900/10"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-[#004a99] to-[#002a5a] opacity-90" />
+        <div
+          className="absolute -right-20 -top-20 w-96 h-96 rounded-full opacity-[0.15] pointer-events-none blur-[100px]"
+          style={{ background: '#f47920' }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none mix-blend-overlay"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        />
 
-          return (
-            <div key={groupName}>
-              <p className="px-3 text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-3 opacity-70">
-                {groupName}
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between p-6 md:p-8 text-white gap-6">
+          <div className="flex items-start md:items-center gap-5">
+            <div className="relative p-3.5 bg-white/5 rounded-xl backdrop-blur-md border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.2)] shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#f47920]/20 to-transparent rounded-xl opacity-50" />
+              <Activity className="h-7 w-7 text-[#f47920] relative z-10" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+                <h2 className="font-bold text-xl md:text-2xl tracking-tight text-white drop-shadow-sm">
+                  Sistema Syngate Ativo
+                </h2>
+              </div>
+              <p className="text-blue-100/70 text-sm md:text-base font-medium max-w-lg leading-relaxed">
+                Monitoramento em tempo real operando com{' '}
+                <span className="text-white">latência mínima</span> nos pontos de acesso.
               </p>
-              <div className="space-y-1.5">
-                {items.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsMobileOpen(false)}
-                      className={cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out",
-                        isActive 
-                          ? "bg-white/10 text-white border-l-4 border-[#f47920] shadow-[0_0_15px_rgba(244,121,32,0.3)]" 
-                          : "text-blue-100 hover:bg-white/10 hover:text-white hover:translate-x-2"
-                      )}
-                    >
-                      <item.icon 
-                        className={cn(
-                          "h-5 w-5 transition-colors duration-300", 
-                          isActive ? "text-[#f47920]" : "text-blue-300 group-hover:text-[#f47920]"
-                        )} 
-                      />
-                      {item.name}
-                    </Link>
-                  );
-                })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between lg:justify-end gap-6 lg:gap-8 lg:border-l border-white/10 lg:pl-8 pt-4 lg:pt-0 mt-2 lg:mt-0">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-[#f47920] mb-1.5 drop-shadow-sm">
+                Integridade
+              </span>
+              <span className="text-emerald-400 font-semibold text-sm flex items-center gap-1.5 bg-emerald-400/10 px-2.5 py-1 rounded-md border border-emerald-400/20">
+                <CheckCircle2 className="w-4 h-4" /> Excelente
+              </span>
+            </div>
+
+            <div className="w-px h-12 bg-white/10 hidden md:block" />
+
+            <div className="flex flex-col text-right">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-blue-300 mb-0.5">
+                Uptime Global
+              </span>
+              <div className="flex items-baseline gap-0.5 justify-end">
+                <span className="block text-4xl font-black tracking-tighter text-white drop-shadow-md">
+                  99.9
+                </span>
+                <span className="text-xl font-bold text-white/50">%</span>
               </div>
             </div>
-          );
-        })}
-      </nav>
-    </aside>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── STATS CARDS ─────────────────────────────────────────────── */}
+      <motion.div variants={itemVariants} className="mb-8">
+        <StatsCards />
+      </motion.div>
+
+      {/* ── GRID PRINCIPAL ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Feed de Acessos */}
+        <motion.div variants={itemVariants} className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between px-1">
+            {/* text-foreground → #0f172a light / #e2e8f0 dark */}
+            <h3 className="text-lg font-bold text-foreground tracking-tight">Fluxo de Acessos</h3>
+            <button className="text-xs font-bold text-[#004a99] flex items-center gap-1 hover:text-[#f47920] transition-colors">
+              Ver Relatório <ArrowUpRight className="h-3 w-3" />
+            </button>
+          </div>
+          {/* border-border e bg-card respondem ao dark mode */}
+          <Card className="border-border shadow-sm rounded-xl overflow-hidden">
+            <CardContent className="p-0">
+              <div className="bg-card p-5">
+                <AccessFeed />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Painel lateral */}
+        <div className="space-y-6">
+          <motion.div
+            variants={itemVariants}
+            className="p-6 bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-3 mb-4 text-[#004a99]">
+              <ShieldCheck className="h-6 w-6" />
+              <h3 className="font-bold tracking-tight text-foreground">Auditoria</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              Acompanhe a integridade dos acessos e realize varreduras nos logs do sistema.
+            </p>
+            <button className="w-full py-2.5 bg-[#f47920] hover:bg-[#e8621a] text-white rounded-lg text-sm font-bold transition-all active:scale-[0.98] shadow-sm shadow-orange-900/20">
+              Executar Varredura
+            </button>
+          </motion.div>
+
+          <motion.div
+            variants={itemVariants}
+            className="p-6 bg-card rounded-xl border border-border shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-5 text-[#004a99]">
+              <Cpu className="h-6 w-6" />
+              <h3 className="font-bold tracking-tight text-foreground">Infraestrutura</h3>
+            </div>
+            <div className="space-y-4">
+              {[
+                { label: 'Servidor API' },
+                { label: 'Banco de Dados' },
+              ].map((item, i) => (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between text-sm">
+                    {/* text-muted-foreground → #64748b light / #8b949e dark */}
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      {item.label}
+                    </div>
+                    <span className="font-semibold text-emerald-600">Online</span>
+                  </div>
+                  {i === 0 && <div className="w-full h-px bg-border mt-4" />}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+</file>
+
+<file path="src/components/dashboard/AccessFeed.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSocket } from '@/hooks/useSocket';
+import { AccessLog } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { motion, AnimatePresence } from 'framer-motion';
+
+export function AccessFeed() {
+  const { socket } = useSocket();
+  const [logs, setLogs] = useState<AccessLog[]>([]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewAccess = (newLog: AccessLog) => {
+      setLogs((prev) => [newLog, ...prev].slice(0, 50));
+    };
+
+    socket.on('access:new', handleNewAccess);
+
+    return () => {
+      socket.off('access:new', handleNewAccess);
+    };
+  }, [socket]);
+
+  return (
+    <div className="space-y-3">
+      {logs.length === 0 ? (
+        <p className="text-sm text-slate-400">Aguardando novos acessos...</p>
+      ) : (
+        <AnimatePresence initial={false}>
+          {logs.map((log) => (
+            <motion.div
+              key={log.id}
+              initial={{ opacity: 0, y: -20, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              transition={{ duration: 0.3 }}
+              className="flex items-center justify-between p-3 bg-slate-50/50 rounded-lg border border-slate-100"
+            >
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-slate-800">
+                  {log.usuarioNome || 'Usuário Desconhecido'}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {new Date(log.horario).toLocaleTimeString()} {log.salaNome && `- ${log.salaNome}`}
+                </span>
+              </div>
+              
+              <Badge 
+                variant={log.tipo === 'CONCEDIDO' ? 'default' : 'destructive'}
+                className={log.tipo === 'CONCEDIDO' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : ''}
+              >
+                {log.tipo}
+              </Badge>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/layout/header.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSession } from '@/hooks/useSession';
+import { logoutAction } from '@/actions/auth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { LogOut, User, Menu, Moon, Sun, Bell } from 'lucide-react';
+
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
+  const { session } = useSession();
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Lê o estado inicial do tema ao montar
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    setIsDarkMode(isDark);
+  };
+
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
+
+  const userName = session?.nome || 'Usuário';
+  const firstName = userName.split(' ')[0];
+
+  return (
+    <header className={`
+      h-20 shrink-0 sticky top-0 z-30
+      flex items-center justify-between px-6 md:px-8
+      border-b transition-colors duration-200
+      ${isDarkMode
+        ? 'bg-[#0d1f3c] border-[#1a3a6b] shadow-[0_1px_0_rgba(26,58,107,0.8)]'
+        : 'bg-white/80 border-slate-200/60 shadow-sm backdrop-blur-md'
+      }
+    `}>
+
+      {/* ── LADO ESQUERDO ──────────────────────────────────────── */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onMenuClick}
+          className={`md:hidden p-2 rounded-lg transition-colors ${
+            isDarkMode
+              ? 'text-slate-300 hover:text-[#f47920] hover:bg-white/5'
+              : 'text-slate-600 hover:text-[#004a99] hover:bg-slate-100/50'
+          }`}
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+
+        <div className="hidden md:flex flex-col">
+          <span className={`text-xs font-bold uppercase tracking-widest ${
+            isDarkMode ? 'text-slate-500' : 'text-slate-400'
+          }`}>
+            Portal de Gestão
+          </span>
+          <h2 className="text-lg font-bold text-[#f47920] tracking-tight">
+            Olá, {firstName}
+          </h2>
+        </div>
+      </div>
+
+      {/* ── LADO DIREITO ───────────────────────────────────────── */}
+      <div className="flex items-center gap-3 md:gap-5">
+
+        {/* Botões de ação */}
+        <div className={`flex items-center gap-1 md:gap-2 border-r pr-4 md:pr-5 ${
+          isDarkMode ? 'border-white/10' : 'border-slate-200/60'
+        }`}>
+          <button
+            onClick={toggleTheme}
+            className={`p-2.5 rounded-full transition-colors ${
+              isDarkMode
+                ? 'text-slate-400 hover:text-[#f47920] hover:bg-white/5'
+                : 'text-slate-400 hover:text-[#f47920] hover:bg-slate-100/80'
+            }`}
+            aria-label="Alternar tema"
+          >
+            {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+
+          <button className={`p-2.5 rounded-full transition-colors relative ${
+            isDarkMode
+              ? 'text-slate-400 hover:text-[#f47920] hover:bg-white/5'
+              : 'text-slate-400 hover:text-[#f47920] hover:bg-slate-100/80'
+          }`}>
+            <Bell className="h-5 w-5" />
+            <span className={`absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-[#f47920] border-2 ${
+              isDarkMode ? 'border-[#0d1f3c]' : 'border-white'
+            }`} />
+          </button>
+        </div>
+
+        {/* Avatar + Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="focus:outline-none">
+            <div className="flex items-center gap-3 cursor-pointer">
+              <div className="relative h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-[#004a99] to-[#f47920] shadow-sm">
+                <div className={`h-full w-full rounded-full flex items-center justify-center text-[#f47920] font-bold text-sm ${
+                  isDarkMode ? 'bg-[#0d1f3c]' : 'bg-white'
+                }`}>
+                  {session?.nome ? getInitials(session.nome) : <User className="h-4 w-4" />}
+                </div>
+              </div>
+
+              <div className="hidden md:flex flex-col items-start text-left">
+                <span className="text-sm font-bold text-[#f47920] leading-none">
+                  {userName}
+                </span>
+                <span className={`text-xs font-medium mt-1 ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  {session?.papel || 'Convidado'}
+                </span>
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            align="end"
+            className={`w-56 mt-2 shadow-xl rounded-xl p-2 border ${
+              isDarkMode
+                ? 'bg-[#0d1f3c] border-[#1a3a6b]'
+                : 'bg-white border-slate-200/60'
+            }`}
+          >
+            <DropdownMenuLabel className="px-2 py-1.5">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-bold text-[#f47920]">{userName}</p>
+                <p className={`text-xs font-medium ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-400'
+                }`}>
+                  {session?.papel}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className={isDarkMode ? 'bg-white/10 my-1' : 'bg-slate-100 my-1'} />
+            <DropdownMenuItem
+              onClick={() => logoutAction()}
+              className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer font-semibold rounded-lg px-3 py-2 transition-colors mt-1"
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Sair do Sistema
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   );
 }
 </file>
@@ -2597,26 +2757,185 @@ export default function RootLayout({
 }
 </file>
 
-<file path="src/providers/providers.tsx">
-"use client"
+<file path="src/components/layout/sidebar.tsx">
+'use client';
 
-import { useState } from 'react'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools' // Importe isto
-import { ThemeProvider } from 'next-themes'
-import { getQueryClient } from '@/lib/query-client'
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useSession } from '@/hooks/useSession';
+import { 
+  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, ChevronLeft 
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+
+interface SidebarProps {
+  isMobileOpen: boolean;
+  setIsMobileOpen: (open: boolean) => void;
+}
+
+export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
+  const pathname = usePathname();
+  const { session } = useSession();
+  const papel = session?.papel;
+  
+  // Estado que controla se a sidebar está expandida ou recolhida
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  const menuItems = [
+    { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Usuários', href: '/dashboard/usuarios', icon: Users, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Salas', href: '/dashboard/salas', icon: DoorOpen, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Dispositivos', href: '/dashboard/dispositivos', icon: Network, roles: ['GESTOR'], group: 'Administração' },
+    { name: 'Relatórios', href: '/dashboard/relatorios', icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'], group: 'Administração' },
+  ];
+
+  const visibleItems = menuItems.filter(item => papel && item.roles.includes(papel));
+
+  return (
+    <aside 
+      // Adicionamos os eventos de mouse aqui
+      onMouseEnter={() => setIsCollapsed(false)}
+      onMouseLeave={() => setIsCollapsed(true)}
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex-col bg-gradient-to-b from-[#003d7d] to-[#002a5a] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-white/5",
+        isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
+        !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
+      )}
+    >
+      {/* ── ELEMENTOS DE DESIGN EXCLUSIVOS ── */}
+      <div 
+        className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
+        style={{
+         clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
+          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 08%, transparent 80%)',
+          boxShadow: 'inset 0 0 20px rgba(244,121,32,0.5)'
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-[0.05] pointer-events-none z-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+
+      {/* ── CONTEÚDO ── */}
+      <div className={cn(
+        "relative z-10 flex h-20 items-center border-b border-white/10 shrink-0 bg-transparent transition-all duration-300",
+        isCollapsed ? "justify-center px-0" : "justify-between px-6"
+      )}>
+        <span className={cn(
+          "font-bold tracking-tight text-white transition-all duration-300 overflow-hidden whitespace-nowrap",
+          isCollapsed ? "text-2xl" : "text-xl"
+        )}>
+          {isCollapsed ? "S" : "Syngate"}
+          <span className="text-[#f47920]">.</span>
+        </span>
+        
+        {/* O botão manual de fechar continua funcionando para mobile */}
+        <button 
+          onClick={() => setIsMobileOpen(false)} 
+          className="md:hidden text-white/70 hover:text-white p-1 transition-colors rounded-md hover:bg-white/5"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+      
+      <nav className="relative z-10 flex-1 py-6 space-y-7 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+        {['Menu', 'Administração'].map(groupName => {
+          const items = visibleItems.filter(i => i.group === groupName);
+          if (items.length === 0) return null;
+
+          return (
+            <div key={groupName} className="space-y-2 px-3">
+              <p className={cn(
+                "text-[10px] font-bold text-white/40 uppercase tracking-widest transition-all duration-300",
+                isCollapsed ? "text-center" : "px-3"
+              )}>
+                {isCollapsed ? "•••" : groupName}
+              </p>
+              
+              <div className="space-y-1">
+                {items.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileOpen(false)}
+                      className="block relative"
+                    >
+                      <motion.div
+                        whileHover={{ x: isCollapsed ? 0 : 4 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={cn(
+                          "group flex items-center rounded-lg text-sm font-medium transition-colors relative z-10 overflow-hidden",
+                          isCollapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5 w-full",
+                          isActive 
+                            ? "text-white font-semibold" 
+                            : "text-white/70 hover:text-white hover:bg-white/5"
+                        )}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeSidebarTab"
+                            className={cn("absolute inset-0 bg-white/10", isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]")}
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                          />
+                        )}
+                        <item.icon className={cn("h-[18px] w-[18px] relative z-10 shrink-0", isActive ? "text-[#f47920]" : "text-white/40")} />
+                        <span className={cn(
+                          "relative z-10 tracking-wide whitespace-nowrap overflow-hidden transition-all duration-300",
+                          isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
+                        )}>
+                          {item.name}
+                        </span>
+                      </motion.div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="relative z-10 p-4 text-center mt-auto pb-6">
+        <p className="text-[10px] text-white/80 tracking-widest uppercase font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
+          {isCollapsed ? "PE" : "Senac PE · 2026"}
+        </p>
+      </div>
+    </aside>
+  );
+}
+</file>
+
+<file path="src/providers/providers.tsx">
+'use client';
+
+import { useState } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ThemeProvider } from 'next-themes';
+import { getQueryClient } from '@/lib/query-client';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => getQueryClient())
+  const [queryClient] = useState(() => getQueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
         {children}
-        <ReactQueryDevtools initialIsOpen={false} /> {/* Adicione isto */}
+        {process.env.NODE_ENV === 'development' && (
+          <ReactQueryDevtools initialIsOpen={false} />
+        )}
       </ThemeProvider>
     </QueryClientProvider>
-  )
+  );
 }
 </file>
 

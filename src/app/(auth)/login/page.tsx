@@ -44,15 +44,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-white">
+    // bg-background cobre light (#fff) e dark (#0d1117)
+    <div className="relative flex h-screen w-full overflow-hidden bg-background">
 
-      {/* ── PAINEL ESQUERDO ───────────────────────────────────────── */}
+      {/* ── PAINEL ESQUERDO (decorativo) ─────────────────────────── */}
       <div className="relative hidden w-[52%] shrink-0 lg:block">
-
-        {/* Fundo azul escuro com degradê */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#003d7d] to-[#002a5a]" />
 
-        {/* Bloco laranja menor com degradê para transparente */}
         <motion.div
           initial={{ x: -80, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -60,11 +58,10 @@ export default function LoginPage() {
           className="absolute left-0 top-0 h-full w-[65%]"
           style={{
             clipPath: 'polygon(0 0, 100% 0, 78% 100%, 0 100%)',
-            background: 'linear-gradient(100deg, #f47920 0%, #e8621a 08%, transparent 76%)',
+            background: 'linear-gradient(100deg, #f47920 0%, #e8621a 8%, transparent 76%)',
           }}
         />
 
-        {/* Grade de pontos decorativa */}
         <div
           className="absolute inset-0 opacity-[0.10]"
           style={{
@@ -73,9 +70,7 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Conteúdo */}
         <div className="relative z-10 flex h-full flex-col justify-between p-14">
-
           <motion.div
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -92,7 +87,7 @@ export default function LoginPage() {
               className="text-5xl font-bold leading-tight tracking-tight text-white"
             >
               Controle de<br />
-              <span className="opacity-100">acesso</span><br />
+              acesso<br />
               inteligente.
             </motion.h1>
 
@@ -137,8 +132,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── PAINEL DIREITO ────────────────────────────────────────── */}
-      <div className="flex flex-1 items-center justify-center bg-white px-8">
+      {/* ── PAINEL DIREITO (formulário) ───────────────────────────── */}
+      {/* bg-background + text-foreground cobrem light e dark */}
+      <div className="flex flex-1 items-center justify-center bg-background px-8">
         <motion.div
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,20 +145,19 @@ export default function LoginPage() {
             <p className="text-xs font-bold uppercase tracking-widest text-[#f47920]">
               Portal de acesso
             </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
               Entrar
             </h2>
-            <p className="mt-1.5 text-sm text-slate-400">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Bem-vindo(a) de volta. Insira seus dados.
             </p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-
             <div className="space-y-1.5">
               <Label
                 htmlFor="email"
-                className="text-[11px] font-bold uppercase tracking-wider text-slate-900"
+                className="text-[11px] font-bold uppercase tracking-wider text-foreground"
               >
                 E-mail
               </Label>
@@ -170,7 +165,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
-                className="h-12 rounded-lg border border-slate-200 !bg-white text-slate-900 placeholder:text-slate-400 transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
+                className="h-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
                 {...register('email')}
               />
               {errors.email && (
@@ -181,7 +176,7 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <Label
                 htmlFor="senha"
-                className="text-[11px] font-bold uppercase tracking-wider text-slate-900"
+                className="text-[11px] font-bold uppercase tracking-wider text-foreground"
               >
                 Senha
               </Label>
@@ -189,7 +184,7 @@ export default function LoginPage() {
                 id="senha"
                 type="password"
                 placeholder="••••••••"
-                className="h-12 rounded-lg border border-slate-200 !bg-white text-slate-900 placeholder:text-slate-400 transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
+                className="h-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground transition-colors hover:border-[#004a99] focus-visible:border-[#004a99] focus-visible:ring-1 focus-visible:ring-[#004a99] focus-visible:ring-offset-0"
                 {...register('senha')}
               />
               {errors.senha && (
@@ -204,24 +199,21 @@ export default function LoginPage() {
             >
               {isSubmitting ? 'Verificando...' : 'Acessar Sistema'}
             </Button>
-
           </form>
 
           <div className="mt-6 text-center">
-            <button className="text-sm text-slate-400 transition-colors hover:text-[#f47920]">
+            <button className="text-sm text-muted-foreground transition-colors hover:text-[#f47920]">
               Problemas com o acesso?
             </button>
           </div>
 
           <div className="mt-10 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-100" />
-            <span className="text-[10px] uppercase tracking-widest text-slate-300">Senac PE · 2026</span>
-            <div className="h-px flex-1 bg-slate-100" />
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Senac PE · 2026</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
-
         </motion.div>
       </div>
-
     </div>
   );
 }
