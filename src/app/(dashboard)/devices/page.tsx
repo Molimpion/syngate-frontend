@@ -33,20 +33,20 @@ export default function DevicesPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'ATIVO': return <Badge className="bg-emerald-500 text-white">ATIVO</Badge>;
-      case 'INATIVO': return <Badge className="bg-slate-400 text-white">INATIVO</Badge>;
-      case 'MANUTENCAO': return <Badge className="bg-yellow-500 text-white">MANUTENÇÃO</Badge>;
-      default: return <Badge>{status}</Badge>;
+      case 'ATIVO':       return <Badge className="bg-emerald-500 text-white">ATIVO</Badge>;
+      case 'INATIVO':     return <Badge className="bg-slate-400 text-white">INATIVO</Badge>;
+      case 'MANUTENCAO':  return <Badge className="bg-yellow-500 text-white">MANUTENÇÃO</Badge>;
+      default:            return <Badge>{status}</Badge>;
     }
   };
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">IoT Devices</h1>
+        <h1 className="text-2xl font-bold text-foreground">Dispositivos IoT</h1>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="icon"
             onClick={loadDevices}
             disabled={loading}
@@ -56,34 +56,35 @@ export default function DevicesPage() {
           </Button>
           <Link href="/dashboard/devices/new">
             <Button className="bg-[#f47920] hover:bg-[#e8621a] text-white">
-              <Plus className="h-4 w-4 mr-2" /> New Device
+              <Plus className="h-4 w-4 mr-2" /> Novo Dispositivo
             </Button>
           </Link>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg mb-6">
           <p className="font-medium">Erro ao carregar dispositivos</p>
           <p className="text-sm">{error}</p>
         </div>
       )}
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      {/* bg-card + border-border respondem ao dark mode */}
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#f47920]"></div>
-              <p className="mt-2 text-slate-600">Carregando dispositivos...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#f47920]" />
+              <p className="mt-2 text-muted-foreground">Carregando dispositivos...</p>
             </div>
           </div>
         ) : devices.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <p className="text-slate-500 mb-4">Nenhum dispositivo cadastrado</p>
+              <p className="text-muted-foreground mb-4">Nenhum dispositivo cadastrado</p>
               <Link href="/dashboard/devices/new">
                 <Button className="bg-[#f47920] hover:bg-[#e8621a] text-white">
-                  <Plus className="h-4 w-4 mr-2" /> Criar Primeiro Dispositivo
+                  <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Dispositivo
                 </Button>
               </Link>
             </div>
@@ -92,25 +93,27 @@ export default function DevicesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Nome</TableHead>
                 <TableHead>MAC Address</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {devices.map((device) => (
                 <TableRow key={device.id}>
-                  <TableCell className="font-medium">{device.nome}</TableCell>
-                  <TableCell className="font-mono text-xs">{device.enderecoMac}</TableCell>
+                  <TableCell className="font-medium text-foreground">{device.nome}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{device.enderecoMac}</TableCell>
                   <TableCell>{getStatusBadge(device.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Link href={`/dashboard/devices/${device.id}`}>
-                        <Button variant="ghost" size="icon-sm" title="Edit"><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon-sm" title="Editar">
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </Link>
                       <Link href={`/dashboard/devices/${device.id}/provision`}>
-                        <Button variant="outline" size="icon-sm" className="text-[#004a99]" title="Provision Key">
+                        <Button variant="outline" size="icon-sm" className="text-[#004a99]" title="Provisionar Chave">
                           <KeySquare className="h-4 w-4" />
                         </Button>
                       </Link>

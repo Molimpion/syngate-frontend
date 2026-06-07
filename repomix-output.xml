@@ -60,17 +60,36 @@ src/
     (dashboard)/
       dashboard/
         page.tsx
+      devices/
+        [id]/
+          provision/
+            page.tsx
+          provisionar/
+            page.tsx
+          page.tsx
+        new/
+          page.tsx
+        page.tsx
+      reports/
+        page.tsx
       layout.tsx
     favicon.ico
     layout.tsx
     page.tsx
   components/
     dashboard/
+      AccessChart.tsx
       AccessFeed.tsx
       StatsCards.tsx
+    devices/
+      DeviceForm.tsx
+      RawKeyDisplay.tsx
     layout/
       header.tsx
       sidebar.tsx
+    reports/
+      ReportsFilter.tsx
+      ReportsTable.tsx
     ui/
       avatar.tsx
       badge.tsx
@@ -94,6 +113,9 @@ src/
     utils.ts
   providers/
     providers.tsx
+  services/
+    devices.service.ts
+    reports.service.ts
   styles/
     globals.css
   types/
@@ -115,10 +137,6 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="src/types/global.d.ts">
-declare module '*.css';
-</file>
 
 <file path=".husky/commit-msg">
 npx --no -- commitlint --edit "$1"
@@ -209,6 +227,444 @@ export default function VerificarEmailPage() {
 }
 </file>
 
+<file path="src/app/(dashboard)/devices/[id]/provision/page.tsx">
+'use client';
+
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { KeySquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { DevicesService } from '@/services/devices.service';
+import { RawKeyDisplay } from '@/components/devices/RawKeyDisplay';
+
+export default function ProvisionarPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const [rawKey, setRawKey] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!confirm('Gerar uma nova chave invalidará a chave atual do dispositivo. Tem certeza?')) return;
+    
+    setIsGenerating(true);
+    try {
+      const response = await DevicesService.provisionar(id as string);
+      setRawKey(response.data.rawKey);
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao gerar chave.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleClose = () => {
+    setRawKey(null);
+    router.push('/dashboard/dispositivos');
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-slate-800 mb-6">Provisionar Segurança</h1>
+      
+      {rawKey ? (
+        <RawKeyDisplay rawKey={rawKey} onClose={handleClose} />
+      ) : (
+        <div className="bg-white p-8 rounded-xl border shadow-sm max-w-2xl text-center space-y-4">
+          <div className="mx-auto bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+            <KeySquare className="h-8 w-8 text-[#004a99]" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800">Gerar Nova Chave IoT</h2>
+          <p className="text-slate-500">
+            Esta ação criará uma credencial única para a placa ESP32 autenticar na API.
+            A chave anterior deixará de funcionar imediatamente.
+          </p>
+          <div className="pt-4">
+            <Button onClick={handleGenerate} disabled={isGenerating} className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+              {isGenerating ? 'Gerando...' : 'Confirmar e Gerar Chave'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/devices/[id]/provisionar/page.tsx">
+'use client';
+
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { KeySquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { DevicesService } from '@/services/devices.service';
+import { RawKeyDisplay } from '@/components/devices/RawKeyDisplay';
+
+export default function ProvisionarPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const [rawKey, setRawKey] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!confirm('Gerar uma nova chave invalidará a chave atual do dispositivo. Tem certeza?')) return;
+    
+    setIsGenerating(true);
+    try {
+      const response = await DevicesService.provisionar(id as string);
+      setRawKey(response.data.rawKey);
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao gerar chave.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleClose = () => {
+    setRawKey(null);
+    router.push('/dashboard/devices');
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-slate-800 mb-6">Provisionar Segurança</h1>
+      
+      {rawKey ? (
+        <RawKeyDisplay rawKey={rawKey} onClose={handleClose} />
+      ) : (
+        <div className="bg-white p-8 rounded-xl border shadow-sm max-w-2xl text-center space-y-4">
+          <div className="mx-auto bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+            <KeySquare className="h-8 w-8 text-[#004a99]" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800">Gerar Nova Chave IoT</h2>
+          <p className="text-slate-500">
+            Esta ação criará uma credencial única para a placa ESP32 autenticar na API.
+            A chave anterior deixará de funcionar imediatamente.
+          </p>
+          <div className="pt-4">
+            <Button onClick={handleGenerate} disabled={isGenerating} className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+              {isGenerating ? 'Gerando...' : 'Confirmar e Gerar Chave'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/devices/[id]/page.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { DeviceForm } from '@/components/devices/DeviceForm';
+import { DevicesService } from '@/services/devices.service';
+
+export default function EditarDispositivoPage() {
+  const { id } = useParams();
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      DevicesService.buscarPorId(id as string).then(res => setData(res.data));
+    }
+  }, [id]);
+
+  if (!data) return <div className="p-6">Carregando...</div>;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-slate-800 mb-6">Editar Dispositivo</h1>
+      <div className="bg-white p-6 rounded-xl border shadow-sm">
+        <DeviceForm initialData={data} />
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/devices/new/page.tsx">
+import { DeviceForm } from '@/components/devices/DeviceForm';
+
+export default function NovoDispositivoPage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-slate-800 mb-6">Cadastrar Dispositivo</h1>
+      <div className="bg-white p-6 rounded-xl border shadow-sm">
+        <DeviceForm />
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/devices/page.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Plus, KeySquare, Edit, RotateCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DevicesService } from '@/services/devices.service';
+import { Device } from '@/types';
+
+export default function DevicesPage() {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDevices = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await DevicesService.listar();
+      setDevices(res.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dispositivos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDevices();
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'ATIVO': return <Badge className="bg-emerald-500 text-white">ATIVO</Badge>;
+      case 'INATIVO': return <Badge className="bg-slate-400 text-white">INATIVO</Badge>;
+      case 'MANUTENCAO': return <Badge className="bg-yellow-500 text-white">MANUTENÇÃO</Badge>;
+      default: return <Badge>{status}</Badge>;
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">IoT Devices</h1>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={loadDevices}
+            disabled={loading}
+            title="Recarregar"
+          >
+            <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Link href="/dashboard/devices/new">
+            <Button className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+              <Plus className="h-4 w-4 mr-2" /> New Device
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <p className="font-medium">Erro ao carregar dispositivos</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#f47920]"></div>
+              <p className="mt-2 text-slate-600">Carregando dispositivos...</p>
+            </div>
+          </div>
+        ) : devices.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <p className="text-slate-500 mb-4">Nenhum dispositivo cadastrado</p>
+              <Link href="/dashboard/devices/new">
+                <Button className="bg-[#f47920] hover:bg-[#e8621a] text-white">
+                  <Plus className="h-4 w-4 mr-2" /> Criar Primeiro Dispositivo
+                </Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>MAC Address</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {devices.map((device) => (
+                <TableRow key={device.id}>
+                  <TableCell className="font-medium">{device.nome}</TableCell>
+                  <TableCell className="font-mono text-xs">{device.enderecoMac}</TableCell>
+                  <TableCell>{getStatusBadge(device.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Link href={`/dashboard/devices/${device.id}`}>
+                        <Button variant="ghost" size="icon-sm" title="Edit"><Edit className="h-4 w-4" /></Button>
+                      </Link>
+                      <Link href={`/dashboard/devices/${device.id}/provision`}>
+                        <Button variant="outline" size="icon-sm" className="text-[#004a99]" title="Provision Key">
+                          <KeySquare className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/reports/page.tsx">
+'use client';
+
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { DownloadCloud } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { reportsService } from '@/services/reports.service';
+import { ReportsFilter } from '@/components/reports/ReportsFilter';
+import { ReportsTable } from '@/components/reports/ReportsTable';
+import { toast } from 'sonner';
+
+function ReportsContent() {
+  const searchParams = useSearchParams();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const filters = {
+    dataInicio: searchParams.get('dataInicio') || undefined,
+    dataFim: searchParams.get('dataFim') || undefined,
+    status: searchParams.get('status') || undefined,
+  };
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['reports', filters],
+    queryFn: () => reportsService.getDashboard(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutos de cache (alinhado com Redis)
+  });
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    toast.info('Iniciando download do CSV...');
+    try {
+      await reportsService.exportCSV(filters);
+      toast.success('Download concluído!');
+    } catch {
+      toast.error('Erro ao exportar arquivo.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Relatórios e Auditoria</h1>
+        <Button 
+          onClick={handleExport} 
+          disabled={isExporting || isLoading || !data?.data?.detalhes?.length} 
+          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+        >
+          <DownloadCloud className="h-4 w-4 mr-2" /> 
+          {isExporting ? 'Gerando...' : 'Exportar CSV'}
+        </Button>
+      </div>
+
+      <ReportsFilter />
+
+      {isLoading ? (
+        <div className="text-center py-10 text-slate-500">Carregando logs...</div>
+      ) : (
+        <ReportsTable logs={data?.data?.detalhes || []} />
+      )}
+    </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Carregando interface...</div>}>
+      <ReportsContent />
+    </Suspense>
+  );
+}
+</file>
+
+<file path="src/components/dashboard/AccessChart.tsx">
+'use client';
+
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { reportsService } from '@/services/reports.service';
+
+export function AccessChart() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['reports', 'chartData'],
+    queryFn: () => reportsService.getDashboard({}), // Pega um apanhado geral
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (isLoading) return <div className="h-[300px] flex items-center justify-center text-slate-400">Carregando gráfico...</div>;
+
+  // Transforma os dados brutos de logs em um agrupamento por dia para o Recharts
+  const logs = data?.data?.detalhes || [];
+  
+  interface ChartDataPoint {
+    name: string;
+    CONCEDIDO: number;
+    NEGADO: number;
+  }
+  
+  const chartData = logs.reduce((acc: ChartDataPoint[], log) => {
+    const dateObj = new Date(log.dataHora);
+    const day = dateObj.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
+    
+    const existing = acc.find((item) => item.name === day);
+    if (existing) {
+      existing[log.status as keyof Omit<ChartDataPoint, 'name'>] += 1;
+    } else {
+      acc.push({ name: day, CONCEDIDO: log.status === 'CONCEDIDO' ? 1 : 0, NEGADO: log.status === 'NEGADO' ? 1 : 0 });
+    }
+    return acc;
+  }, []).reverse().slice(0, 7); // Últimos 7 dias
+
+  return (
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+          <Tooltip 
+            cursor={{ fill: '#f1f5f9' }} 
+            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+          />
+          <Bar dataKey="CONCEDIDO" name="Acessos Liberados" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
+          <Bar dataKey="NEGADO" name="Acessos Bloqueados" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+</file>
+
 <file path="src/components/dashboard/StatsCards.tsx">
 'use client';
 
@@ -238,6 +694,285 @@ export function StatsCards() {
         <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Dispositivos Ativos</CardTitle></CardHeader>
         <CardContent><div className="text-2xl font-bold">{data?.dispositivosAtivos || 0}</div></CardContent>
       </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/devices/DeviceForm.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { DevicesService } from '@/services/devices.service';
+import { Sala } from '@/types';
+
+const macRegex = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
+
+const schema = z.object({
+  nome: z.string().min(3, 'Mínimo de 3 caracteres'),
+  tipo: z.enum(['CATRACA', 'LEITOR_CARTAO']),
+  salaId: z.string().uuid('Selecione uma sala'),
+  enderecoMac: z.string().toUpperCase().regex(macRegex, 'Formato: AA:BB:CC:DD:EE:FF'),
+  ipLocal: z.string().regex(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, 'IP inválido').optional().or(z.literal('')),
+});
+
+type FormData = z.infer<typeof schema>;
+
+export function DeviceForm({ initialData }: { initialData?: any }) {
+  const router = useRouter();
+  const [salas, setSalas] = useState<Sala[]>([]);
+
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: initialData || { tipo: 'LEITOR_CARTAO', salaId: '', enderecoMac: '' },
+  });
+
+  useEffect(() => {
+    DevicesService.listarSalas().then((res) => setSalas(res.data)).catch(() => toast.error('Erro ao carregar salas'));
+  }, []);
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      if (initialData?.id) {
+        await DevicesService.atualizar(initialData.id, data);
+        toast.success('Dispositivo atualizado!');
+      } else {
+        await DevicesService.criar(data);
+        toast.success('Dispositivo cadastrado!');
+      }
+      router.push('/dashboard/dispositivos');
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-xl">
+      <div className="space-y-2">
+        <Label>Nome do Dispositivo</Label>
+        <Input {...register('nome')} placeholder="Ex: Catraca Entrada Principal" />
+        {errors.nome && <p className="text-red-500 text-xs">{errors.nome.message}</p>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <select {...register('tipo')} className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-base shadow-sm">
+            <option value="CATRACA">Catraca</option>
+            <option value="LEITOR_CARTAO">Leitor de Cartão</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Sala / Local</Label>
+          <select {...register('salaId')} className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-base shadow-sm">
+            <option value="">Selecione...</option>
+            {salas.map((sala) => (
+              <option key={sala.id} value={sala.id}>{sala.nome} {sala.bloco && `(${sala.bloco})`}</option>
+            ))}
+          </select>
+          {errors.salaId && <p className="text-red-500 text-xs">{errors.salaId.message}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>MAC Address</Label>
+          <Input 
+            {...register('enderecoMac')} 
+            placeholder="AA:BB:CC:DD:EE:FF" 
+            onChange={(e) => setValue('enderecoMac', e.target.value.toUpperCase())}
+          />
+          {errors.enderecoMac && <p className="text-red-500 text-xs">{errors.enderecoMac.message}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <Label>IP Local (Opcional)</Label>
+          <Input {...register('ipLocal')} placeholder="192.168.1.100" />
+          {errors.ipLocal && <p className="text-red-500 text-xs">{errors.ipLocal.message}</p>}
+        </div>
+      </div>
+
+      <Button type="submit" disabled={isSubmitting} className="mt-4">{isSubmitting ? 'Salvando...' : 'Salvar Dispositivo'}</Button>
+    </form>
+  );
+}
+</file>
+
+<file path="src/components/devices/RawKeyDisplay.tsx">
+'use client';
+
+import { CheckCircle2, Copy } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+
+interface Props {
+  rawKey: string;
+  onClose: () => void;
+}
+
+export function RawKeyDisplay({ rawKey, onClose }: Props) {
+  const handleCopy = () => {
+    navigator.clipboard.writeText(rawKey);
+    toast.success('Chave copiada para a área de transferência!');
+  };
+
+  return (
+    <div className="p-6 border border-orange-200 bg-orange-50 rounded-xl shadow-sm max-w-2xl">
+      <div className="flex items-center gap-2 text-orange-700 mb-2">
+        <CheckCircle2 className="h-5 w-5" />
+        <h3 className="font-bold text-lg">Chave Gerada com Sucesso!</h3>
+      </div>
+      
+      <p className="text-orange-800 text-sm mb-4">
+        <strong>AVISO CRÍTICO:</strong> Esta chave não será exibida novamente por motivos de segurança. 
+        Copie-a agora mesmo e grave no firmware do dispositivo.
+      </p>
+
+      <div className="flex items-center gap-2 mb-6">
+        <code className="flex-1 p-3 bg-white border border-orange-200 rounded-lg text-lg font-mono text-center break-all select-all">
+          {rawKey}
+        </code>
+        <Button variant="outline" onClick={handleCopy} className="h-14">
+          <Copy className="h-5 w-5" />
+        </Button>
+      </div>
+
+      <Button onClick={onClose} className="w-full bg-[#004a99] hover:bg-[#003d7d]">
+        Já copiei a chave, finalizar
+      </Button>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/reports/ReportsFilter.tsx">
+'use client';
+
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FilterX } from 'lucide-react';
+
+export function ReportsFilter() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const handleChange = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    router.push(`?${params.toString()}`);
+  };
+
+  const clearFilters = () => {
+    router.push('/dashboard/reports');
+  };
+
+  return (
+    <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
+      <div className="space-y-1.5 flex-1 min-w-[150px]">
+        <Label>Data Início</Label>
+        <Input 
+          type="date" 
+          value={searchParams.get('dataInicio') || ''} 
+          onChange={(e) => handleChange('dataInicio', e.target.value)} 
+        />
+      </div>
+      <div className="space-y-1.5 flex-1 min-w-[150px]">
+        <Label>Data Fim</Label>
+        <Input 
+          type="date" 
+          value={searchParams.get('dataFim') || ''} 
+          onChange={(e) => handleChange('dataFim', e.target.value)} 
+        />
+      </div>
+      <div className="space-y-1.5 flex-1 min-w-[150px]">
+        <Label>Status</Label>
+        <select 
+          className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm shadow-sm"
+          value={searchParams.get('status') || ''} 
+          onChange={(e) => handleChange('status', e.target.value)}
+        >
+          <option value="">Todos</option>
+          <option value="CONCEDIDO">Concedido</option>
+          <option value="NEGADO">Negado</option>
+        </select>
+      </div>
+      <Button variant="outline" onClick={clearFilters} className="h-8">
+        <FilterX className="h-4 w-4 mr-2" /> Limpar
+      </Button>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/reports/ReportsTable.tsx">
+'use client';
+
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AccessLogDetail } from '@/types';
+
+export function ReportsTable({ logs }: { logs: AccessLogDetail[] }) {
+  return (
+    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data/Hora</TableHead>
+            <TableHead>Usuário / UID</TableHead>
+            <TableHead>Sala / Dispositivo</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Motivo</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {logs.length === 0 && (
+            <TableRow><TableCell colSpan={5} className="text-center py-6 text-slate-500">Nenhum registro encontrado.</TableCell></TableRow>
+          )}
+          {logs.map((log) => (
+            <TableRow key={log.id}>
+              <TableCell className="text-xs whitespace-nowrap">
+                {new Date(log.dataHora).toLocaleString('pt-BR')}
+              </TableCell>
+              <TableCell>
+                {log.usuario ? (
+                  <div>
+                    <p className="font-semibold">{log.usuario.nome}</p>
+                    <p className="text-xs text-slate-500">{log.usuario.papel} • {log.usuario.matricula}</p>
+                  </div>
+                ) : (
+                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                    Cartão Desconhecido ({log.uidCartao})
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell>
+                <p className="font-medium">{log.dispositivo.sala.nome} {log.dispositivo.sala.bloco && `(${log.dispositivo.sala.bloco})`}</p>
+                <p className="text-xs text-slate-500">{log.dispositivo.nome} • {log.direcao}</p>
+              </TableCell>
+              <TableCell>
+                <Badge className={log.status === 'CONCEDIDO' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}>
+                  {log.status}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-xs max-w-[200px] truncate" title={log.motivo || '-'}>
+                {log.motivo || '-'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -1489,6 +2224,61 @@ export function cn(...inputs: ClassValue[]) {
 }
 </file>
 
+<file path="src/services/devices.service.ts">
+import { apiFetch } from '@/lib/api';
+import { Device, Sala } from '@/types';
+
+export const DevicesService = {
+  listar: () => apiFetch<{ data: Device[] }>('/devices?limit=100'),
+  buscarPorId: (id: string) => apiFetch<{ data: Device }>(`/devices/${id}`),
+  criar: (data: Partial<Device>) => apiFetch('/devices', { method: 'POST', body: JSON.stringify(data) }),
+  atualizar: (id: string, data: Partial<Device>) => apiFetch(`/devices/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  provisionar: (id: string) => apiFetch<{ data: { rawKey: string } }>(`/devices/${id}/provision`, { method: 'POST' }),
+  listarSalas: () => apiFetch<{ data: Sala[] }>('/rooms?limit=100'),
+};
+</file>
+
+<file path="src/services/reports.service.ts">
+import { apiFetch } from '@/lib/api';
+import { ReportFilters, DashboardReportResponse } from '@/types';
+
+export const reportsService = {
+  getDashboard: (filters: ReportFilters) => {
+    const params = new URLSearchParams(filters as Record<string, string>).toString();
+    return apiFetch<{ data: DashboardReportResponse }>(`/reports/dashboard?${params}`);
+  },
+  
+  exportCSV: async (filters: ReportFilters) => {
+    const params = new URLSearchParams(filters as Record<string, string>).toString();
+    const isServer = typeof window === 'undefined';
+    const baseUrl = isServer ? process.env.API_URL : '/api/proxy';
+    
+    // Precisamos usar fetch direto aqui para tratar a resposta como Blob (arquivo)
+    const token = document.cookie.split('syngate_token=')[1]?.split(';')[0];
+    
+    const response = await fetch(`${baseUrl}/reports/export/csv?${params}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!response.ok) throw new Error('Erro ao exportar CSV');
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-acessos-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+};
+</file>
+
+<file path="src/types/global.d.ts">
+declare module '*.css';
+</file>
+
 <file path="src/middleware.ts">
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -1649,36 +2439,6 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 </file>
 
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
-}
-</file>
-
 <file path="src/actions/auth.ts">
 'use server';
 
@@ -1744,6 +2504,188 @@ export async function getSessionAction(): Promise<JwtPayload | null> {
 export async function logoutAction() {
   (await cookies()).delete(COOKIE_NAME);
   redirect('/login');
+}
+</file>
+
+<file path="src/app/page.tsx">
+import { redirect } from 'next/navigation';
+
+export default function Home() {
+  redirect('/dashboard');
+}
+</file>
+
+<file path="src/components/ui/button.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        outline:
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+        ghost:
+          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        destructive:
+          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default:
+          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        icon: "size-8",
+        "icon-xs":
+          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm":
+          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+        "icon-lg": "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot.Root : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+</file>
+
+<file path="components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-nova",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{
+      source: '/api/proxy/:path*',
+      destination: `${process.env.API_URL}/:path*`,
+    }];
+  },
+};
+
+export default nextConfig;
+</file>
+
+<file path="postcss.config.mjs">
+/** @type {import('postcss-load-config').Config} */
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="tailwind.config.ts">
+// Tailwind v4: toda a configuração vai em src/styles/globals.css via @theme.
+// Este arquivo existe apenas para satisfazer ferramentas que procuram por ele.
+export default {};
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
 </file>
 
@@ -2000,82 +2942,69 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 }
 </file>
 
-<file path="src/app/page.tsx">
-import { redirect } from 'next/navigation';
+<file path="src/components/dashboard/AccessFeed.tsx">
+'use client';
 
-export default function Home() {
-  redirect('/dashboard');
-}
-</file>
+import { useEffect, useState } from 'react';
+import { useSocket } from '@/hooks/useSocket';
+import { AccessLog } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { motion, AnimatePresence } from 'framer-motion';
 
-<file path="src/components/ui/button.tsx">
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
+export function AccessFeed() {
+  const { socket } = useSocket();
+  const [logs, setLogs] = useState<AccessLog[]>([]);
 
-import { cn } from "@/lib/utils"
+  useEffect(() => {
+    if (!socket) return;
 
-const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-        ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
-        destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
-        "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+    const handleNewAccess = (newLog: AccessLog) => {
+      setLogs((prev) => [newLog, ...prev].slice(0, 50));
+    };
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot.Root : "button"
+    socket.on('access:new', handleNewAccess);
+
+    return () => {
+      socket.off('access:new', handleNewAccess);
+    };
+  }, [socket]);
 
   return (
-    <Comp
-      data-slot="button"
-      data-variant={variant}
-      data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
+    <div className="space-y-3">
+      {logs.length === 0 ? (
+        <p className="text-sm text-slate-400">Aguardando novos acessos...</p>
+      ) : (
+        <AnimatePresence initial={false}>
+          {logs.map((log) => (
+            <motion.div
+              key={log.id}
+              initial={{ opacity: 0, y: -20, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              transition={{ duration: 0.3 }}
+              className="flex items-center justify-between p-3 bg-slate-50/50 rounded-lg border border-slate-100"
+            >
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-slate-800">
+                  {log.usuarioNome || 'Usuário Desconhecido'}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {new Date(log.horario).toLocaleTimeString()} {log.salaNome && `- ${log.salaNome}`}
+                </span>
+              </div>
+              
+              <Badge 
+                variant={log.tipo === 'CONCEDIDO' ? 'default' : 'destructive'}
+                className={log.tipo === 'CONCEDIDO' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : ''}
+              >
+                {log.tipo}
+              </Badge>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
+    </div>
+  );
 }
-
-export { Button, buttonVariants }
 </file>
 
 <file path="src/hooks/useSocket.ts">
@@ -2206,118 +3135,6 @@ export function useSocket() {
     --color-ring: #1a6fd4;
   }
 }
-</file>
-
-<file path="src/types/index.ts">
-// ─── Enums e tipos primitivos ──────────────────────────────────────────────
-
-export type PapelUsuario =
-  | 'ALUNO'
-  | 'PROFESSOR'
-  | 'FUNCIONARIO'
-  | 'COORDENADOR'
-  | 'GESTOR'
-  | 'VISITANTE';
-
-export type TipoDispositivo = 'CATRACA' | 'LEITOR_QR' | 'TOTEM';
-
-/** Status de um evento de acesso — deve bater com o enum do backend */
-export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
-
-// ─── Auth ──────────────────────────────────────────────────────────────────
-
-export interface LoginPayload {
-  email: string;
-  senha: string;
-}
-
-export interface JwtPayload {
-  sub: string;
-  papel: PapelUsuario;
-  nome: string;
-  exp?: number;
-}
-
-export interface TokenResponse {
-  accessToken: string;
-}
-
-// ─── Logs de Acesso ────────────────────────────────────────────────────────
-
-/**
- * Shape do evento `access:new` emitido pelo Socket.io do backend.
- * Campos opcionais refletem joins que o backend pode ou não incluir.
- */
-export interface AccessLog {
-  id: string;
-  usuarioId: string;
-  salaId: string;
-  tipo: TipoAcesso;
-  /** ISO 8601 string ou Date — use `new Date(log.horario)` para formatar */
-  horario: string | Date;
-  usuarioNome?: string;
-  salaNome?: string;
-}
-</file>
-
-<file path="components.json">
-{
-  "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "radix-nova",
-  "rsc": true,
-  "tsx": true,
-  "tailwind": {
-    "config": "",
-    "css": "src/styles/globals.css",
-    "baseColor": "neutral",
-    "cssVariables": true,
-    "prefix": ""
-  },
-  "iconLibrary": "lucide",
-  "rtl": false,
-  "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
-  },
-  "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {}
-}
-</file>
-
-<file path="next.config.ts">
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  async rewrites() {
-    return [{
-      source: '/api/proxy/:path*',
-      destination: `${process.env.API_URL}/:path*`,
-    }];
-  },
-};
-
-export default nextConfig;
-</file>
-
-<file path="postcss.config.mjs">
-/** @type {import('postcss-load-config').Config} */
-const config = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
-
-export default config;
-</file>
-
-<file path="tailwind.config.ts">
-// Tailwind v4: toda a configuração vai em src/styles/globals.css via @theme.
-// Este arquivo existe apenas para satisfazer ferramentas que procuram por ele.
-export default {};
 </file>
 
 <file path="src/app/(dashboard)/dashboard/page.tsx">
@@ -2498,67 +3315,31 @@ export default function DashboardPage() {
 }
 </file>
 
-<file path="src/components/dashboard/AccessFeed.tsx">
-'use client';
+<file path="src/app/layout.tsx">
+import type { Metadata } from "next";
+import "@/styles/globals.css";
+import { Providers } from "@/providers/providers";
+import { Toaster } from "@/components/ui/sonner";
 
-import { useEffect, useState } from 'react';
-import { useSocket } from '@/hooks/useSocket';
-import { AccessLog } from '@/types';
-import { Badge } from '@/components/ui/badge';
-import { motion, AnimatePresence } from 'framer-motion';
+export const metadata: Metadata = {
+  title: "Syngate Senac",
+  description: "Sistema de Controle de Acesso",
+};
 
-export function AccessFeed() {
-  const { socket } = useSocket();
-  const [logs, setLogs] = useState<AccessLog[]>([]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleNewAccess = (newLog: AccessLog) => {
-      setLogs((prev) => [newLog, ...prev].slice(0, 50));
-    };
-
-    socket.on('access:new', handleNewAccess);
-
-    return () => {
-      socket.off('access:new', handleNewAccess);
-    };
-  }, [socket]);
-
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <div className="space-y-3">
-      {logs.length === 0 ? (
-        <p className="text-sm text-slate-400">Aguardando novos acessos...</p>
-      ) : (
-        <AnimatePresence initial={false}>
-          {logs.map((log) => (
-            <motion.div
-              key={log.id}
-              initial={{ opacity: 0, y: -20, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              transition={{ duration: 0.3 }}
-              className="flex items-center justify-between p-3 bg-slate-50/50 rounded-lg border border-slate-100"
-            >
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-slate-800">
-                  {log.usuarioNome || 'Usuário Desconhecido'}
-                </span>
-                <span className="text-xs text-slate-500">
-                  {new Date(log.horario).toLocaleTimeString()} {log.salaNome && `- ${log.salaNome}`}
-                </span>
-              </div>
-              
-              <Badge 
-                variant={log.tipo === 'CONCEDIDO' ? 'default' : 'destructive'}
-                className={log.tipo === 'CONCEDIDO' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : ''}
-              >
-                {log.tipo}
-              </Badge>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      )}
-    </div>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className="antialiased">
+        <Providers>
+          {children}
+          <Toaster richColors position="top-right" />
+        </Providers>
+      </body>
+    </html>
   );
 }
 </file>
@@ -2728,32 +3509,153 @@ export function Header({ onMenuClick }: HeaderProps) {
 }
 </file>
 
-<file path="src/app/layout.tsx">
-import type { Metadata } from "next";
-import "@/styles/globals.css";
-import { Providers } from "@/providers/providers";
-import { Toaster } from "@/components/ui/sonner";
+<file path="src/providers/providers.tsx">
+'use client';
 
-export const metadata: Metadata = {
-  title: "Syngate Senac",
-  description: "Sistema de Controle de Acesso",
-};
+import { useState } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ThemeProvider } from 'next-themes';
+import { getQueryClient } from '@/lib/query-client';
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => getQueryClient());
+
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className="antialiased">
-        <Providers>
-          {children}
-          <Toaster richColors position="top-right" />
-        </Providers>
-      </body>
-    </html>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+        {children}
+        {process.env.NODE_ENV === 'development' && (
+          <ReactQueryDevtools initialIsOpen={false} />
+        )}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
+}
+</file>
+
+<file path="src/types/index.ts">
+// ─── Enums e tipos primitivos ──────────────────────────────────────────────
+
+export type PapelUsuario =
+  | 'ALUNO'
+  | 'PROFESSOR'
+  | 'FUNCIONARIO'
+  | 'COORDENADOR'
+  | 'GESTOR'
+  | 'VISITANTE';
+
+export type TipoDispositivo = 'CATRACA' | 'LEITOR_CARTAO';
+
+/** Status de um evento de acesso — deve bater com o enum do backend */
+export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
+
+export interface LoginPayload {
+  email: string;
+  senha: string;
+}
+
+export interface JwtPayload {
+  sub: string;
+  papel: PapelUsuario;
+  nome: string;
+  exp?: number;
+}
+
+export interface TokenResponse {
+  accessToken: string;
+}
+
+// ─── Logs de Acesso ────────────────────────────────────────────────────────
+
+/**
+ * Shape do evento `access:new` emitido pelo Socket.io do backend.
+ * Campos opcionais refletem joins que o backend pode ou não incluir.
+ */
+export interface AccessLog {
+  id: string;
+  usuarioId: string;
+  salaId: string;
+  tipo: TipoAcesso;
+  /** ISO 8601 string ou Date — use `new Date(log.horario)` para formatar */
+  horario: string | Date;
+  usuarioNome?: string;
+  salaNome?: string;
+}
+
+export type StatusDispositivo = 'ATIVO' | 'INATIVO' | 'MANUTENCAO';
+
+export interface Device {
+  id: string;
+  nome: string;
+  tipo: TipoDispositivo;
+  status: StatusDispositivo;
+  enderecoMac: string;
+  ipLocal?: string;
+  salaId: string;
+}
+
+export interface Sala {
+  id: string;
+  nome: string;
+  bloco?: string;
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "syngate-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-query-devtools": "^5.101.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.14.0",
+    "next": "^16.2.7",
+    "next-themes": "^0.4.6",
+    "qrcode": "^1.5.4",
+    "radix-ui": "^1.4.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.75.0",
+    "recharts": "^3.8.1",
+    "shadcn": "^4.7.0",
+    "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "vaul": "^1.1.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.0",
+    "@commitlint/config-conventional": "^21.0.0",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.18",
+    "husky": "^9.1.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
 }
 </file>
 
@@ -2765,7 +3667,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { 
-  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X, ChevronLeft 
+  Activity, Users, DoorOpen, Network, BarChart3, Settings2, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -2780,37 +3682,36 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { session } = useSession();
   const papel = session?.papel;
   
-  // Estado que controla se a sidebar está expandida ou recolhida
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const menuItems = [
-    { name: 'Painel', href: '/dashboard', icon: Activity, roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
-    { name: 'Usuários', href: '/dashboard/usuarios', icon: Users, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Salas', href: '/dashboard/salas', icon: DoorOpen, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos', href: '/dashboard/dispositivos', icon: Network, roles: ['GESTOR'], group: 'Administração' },
-    { name: 'Relatórios', href: '/dashboard/relatorios', icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'], group: 'Administração' },
+    { name: 'Painel',        href: '/dashboard',               icon: Activity,  roles: ['ALUNO', 'PROFESSOR', 'FUNCIONARIO', 'COORDENADOR', 'GESTOR', 'VISITANTE'], group: 'Menu' },
+    { name: 'Usuários',      href: '/dashboard/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Salas',         href: '/dashboard/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Dispositivos',  href: '/dashboard/devices',  icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Relatórios',    href: '/dashboard/reports',    icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
+    { name: 'Configurações', href: '/dashboard/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
   ];
 
   const visibleItems = menuItems.filter(item => papel && item.roles.includes(papel));
 
   return (
     <aside 
-      // Adicionamos os eventos de mouse aqui
       onMouseEnter={() => setIsCollapsed(false)}
       onMouseLeave={() => setIsCollapsed(true)}
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex-col bg-gradient-to-b from-[#003d7d] to-[#002a5a] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-white/5",
+        // bg-[#0d1f3c] → mesmo azul do header no dark mode; border-[#1a3a6b] → mesma borda
+        "fixed inset-y-0 left-0 z-50 flex-col bg-[#0d1f3c] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-[#1a3a6b]",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
         !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
       )}
     >
-      {/* ── ELEMENTOS DE DESIGN EXCLUSIVOS ── */}
+      {/* ── ELEMENTOS DE DESIGN ── */}
       <div 
         className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
         style={{
-         clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
-          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 08%, transparent 80%)',
+          clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
+          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 8%, transparent 80%)',
           boxShadow: 'inset 0 0 20px rgba(244,121,32,0.5)'
         }}
       />
@@ -2822,7 +3723,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         }}
       />
 
-      {/* ── CONTEÚDO ── */}
+      {/* ── LOGO ── */}
       <div className={cn(
         "relative z-10 flex h-20 items-center border-b border-white/10 shrink-0 bg-transparent transition-all duration-300",
         isCollapsed ? "justify-center px-0" : "justify-between px-6"
@@ -2835,7 +3736,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           <span className="text-[#f47920]">.</span>
         </span>
         
-        {/* O botão manual de fechar continua funcionando para mobile */}
         <button 
           onClick={() => setIsMobileOpen(false)} 
           className="md:hidden text-white/70 hover:text-white p-1 transition-colors rounded-md hover:bg-white/5"
@@ -2844,6 +3744,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         </button>
       </div>
       
+      {/* ── NAV ── */}
       <nav className="relative z-10 flex-1 py-6 space-y-7 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
         {['Menu', 'Administração'].map(groupName => {
           const items = visibleItems.filter(i => i.group === groupName);
@@ -2882,12 +3783,18 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
                         {isActive && (
                           <motion.div
                             layoutId="activeSidebarTab"
-                            className={cn("absolute inset-0 bg-white/10", isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]")}
+                            className={cn(
+                              "absolute inset-0 bg-white/10",
+                              isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]"
+                            )}
                             initial={false}
                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                           />
                         )}
-                        <item.icon className={cn("h-[18px] w-[18px] relative z-10 shrink-0", isActive ? "text-[#f47920]" : "text-white/40")} />
+                        <item.icon className={cn(
+                          "h-[18px] w-[18px] relative z-10 shrink-0",
+                          isActive ? "text-[#f47920]" : "text-white/40"
+                        )} />
                         <span className={cn(
                           "relative z-10 tracking-wide whitespace-nowrap overflow-hidden transition-all duration-300",
                           isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
@@ -2904,6 +3811,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         })}
       </nav>
 
+      {/* ── RODAPÉ ── */}
       <div className="relative z-10 p-4 text-center mt-auto pb-6">
         <p className="text-[10px] text-white/80 tracking-widest uppercase font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
           {isCollapsed ? "PE" : "Senac PE · 2026"}
@@ -2911,86 +3819,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
       </div>
     </aside>
   );
-}
-</file>
-
-<file path="src/providers/providers.tsx">
-'use client';
-
-import { useState } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ThemeProvider } from 'next-themes';
-import { getQueryClient } from '@/lib/query-client';
-
-export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => getQueryClient());
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-        {children}
-        {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools initialIsOpen={false} />
-        )}
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
-}
-</file>
-
-<file path="package.json">
-{
-  "name": "syngate-frontend",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start",
-    "lint": "eslint",
-    "prepare": "husky"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@tanstack/react-query": "^5.101.0",
-    "@tanstack/react-query-devtools": "^5.101.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "date-fns": "^4.1.0",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.14.0",
-    "next": "15.5.18",
-    "next-themes": "^0.4.6",
-    "qrcode": "^1.5.4",
-    "radix-ui": "^1.4.3",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-hook-form": "^7.75.0",
-    "recharts": "^3.8.1",
-    "shadcn": "^4.7.0",
-    "socket.io-client": "^4.8.3",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.6.0",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "vaul": "^1.1.2",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@commitlint/cli": "^21.0.0",
-    "@commitlint/config-conventional": "^21.0.0",
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.18",
-    "husky": "^9.1.7",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
 }
 </file>
 
