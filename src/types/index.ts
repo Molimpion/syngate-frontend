@@ -31,22 +31,62 @@ export interface TokenResponse {
   accessToken: string;
 }
 
-// ─── Logs de Acesso ────────────────────────────────────────────────────────
+// ─── Logs de Acesso (Socket.io) ────────────────────────────────────────────
 
-/**
- * Shape do evento `access:new` emitido pelo Socket.io do backend.
- * Campos opcionais refletem joins que o backend pode ou não incluir.
- */
 export interface AccessLog {
   id: string;
   usuarioId: string;
   salaId: string;
   tipo: TipoAcesso;
-  /** ISO 8601 string ou Date — use `new Date(log.horario)` para formatar */
   horario: string | Date;
   usuarioNome?: string;
   salaNome?: string;
 }
+
+// ─── Logs de Acesso (Relatórios / API REST) ────────────────────────────────
+
+export interface AccessLogDetail {
+  id: string;
+  dataHora: string;
+  status: TipoAcesso;
+  direcao: string;
+  motivo?: string | null;
+  uidCartao?: string | null;
+  usuario?: {
+    nome: string;
+    papel: PapelUsuario;
+    matricula: string;
+  } | null;
+  dispositivo: {
+    nome: string;
+    sala: {
+      nome: string;
+      bloco?: string;
+    };
+  };
+}
+
+// ─── Relatórios ────────────────────────────────────────────────────────────
+
+export interface ReportFilters {
+  dataInicio?: string;
+  dataFim?: string;
+  status?: string;
+  usuarioId?: string;
+  dispositivoId?: string;
+}
+
+/** Shape real retornado pelo backend em GET /reports/dashboard */
+export interface DashboardReportResponse {
+  resumo: {
+    totalAcessos: number;
+    porStatus: { status: string; _count: number }[];
+    porDirecao: { direcao: string; _count: number }[];
+  };
+  detalhes: AccessLogDetail[];
+}
+
+// ─── Dispositivos ──────────────────────────────────────────────────────────
 
 export type StatusDispositivo = 'ATIVO' | 'INATIVO' | 'MANUTENCAO';
 
