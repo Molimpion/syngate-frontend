@@ -20,6 +20,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { session } = useSession();
   const papel = session?.papel;
   
+  // Estado que controla se a sidebar está expandida ou recolhida
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const menuItems = [
@@ -37,21 +38,21 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
   return (
     <aside 
+      // Adicionamos os eventos de mouse aqui
       onMouseEnter={() => setIsCollapsed(false)}
       onMouseLeave={() => setIsCollapsed(true)}
       className={cn(
-        // bg-[#0d1f3c] → mesmo azul do header no dark mode; border-[#1a3a6b] → mesma borda
-        "fixed inset-y-0 left-0 z-50 flex-col bg-[#0d1f3c] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-[#1a3a6b]",
+        "fixed inset-y-0 left-0 z-50 flex-col bg-gradient-to-b from-[#003d7d] to-[#002a5a] text-white transform transition-all duration-300 ease-in-out md:relative flex shrink-0 overflow-hidden border-r border-white/5",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
         !isMobileOpen && isCollapsed ? "md:w-20" : "md:w-64"
       )}
     >
-      {/* ── ELEMENTOS DE DESIGN ── */}
+      {/* ── ELEMENTOS DE DESIGN EXCLUSIVOS ── */}
       <div 
         className="absolute right-0 bottom-0 h-56 w-full opacity-90 pointer-events-none z-0 transition-all duration-300"
         style={{
-          clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
-          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 8%, transparent 80%)',
+         clipPath: 'polygon(0 100%, 100% 100%, 100% 70%, 0 0)',
+          background: 'linear-gradient(to top right, #d8540d 0%, #f47920 08%, transparent 80%)',
           boxShadow: 'inset 0 0 20px rgba(244,121,32,0.5)'
         }}
       />
@@ -63,7 +64,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         }}
       />
 
-      {/* ── LOGO ── */}
+      {/* ── CONTEÚDO ── */}
       <div className={cn(
         "relative z-10 flex h-20 items-center border-b border-white/10 shrink-0 bg-transparent transition-all duration-300",
         isCollapsed ? "justify-center px-0" : "justify-between px-6"
@@ -76,6 +77,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           <span className="text-[#f47920]">.</span>
         </span>
         
+        {/* O botão manual de fechar continua funcionando para mobile */}
         <button 
           onClick={() => setIsMobileOpen(false)} 
           className="md:hidden text-white/70 hover:text-white p-1 transition-colors rounded-md hover:bg-white/5"
@@ -84,7 +86,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         </button>
       </div>
       
-      {/* ── NAV ── */}
       <nav className="relative z-10 flex-1 py-6 space-y-7 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
         {['Menu', 'Administração'].map(groupName => {
           const items = visibleItems.filter(i => i.group === groupName);
@@ -123,18 +124,12 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
                         {isActive && (
                           <motion.div
                             layoutId="activeSidebarTab"
-                            className={cn(
-                              "absolute inset-0 bg-white/10",
-                              isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]"
-                            )}
+                            className={cn("absolute inset-0 bg-white/10", isCollapsed ? "rounded-lg" : "rounded-lg border-l-4 border-[#f47920]")}
                             initial={false}
                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                           />
                         )}
-                        <item.icon className={cn(
-                          "h-[18px] w-[18px] relative z-10 shrink-0",
-                          isActive ? "text-[#f47920]" : "text-white/40"
-                        )} />
+                        <item.icon className={cn("h-[18px] w-[18px] relative z-10 shrink-0", isActive ? "text-[#f47920]" : "text-white/40")} />
                         <span className={cn(
                           "relative z-10 tracking-wide whitespace-nowrap overflow-hidden transition-all duration-300",
                           isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
@@ -151,7 +146,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
         })}
       </nav>
 
-      {/* ── RODAPÉ ── */}
       <div className="relative z-10 p-4 text-center mt-auto pb-6">
         <p className="text-[10px] text-white/80 tracking-widest uppercase font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
           {isCollapsed ? "PE" : "Senac PE · 2026"}
