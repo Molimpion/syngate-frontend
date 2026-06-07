@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -16,107 +15,99 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { trocarSenha } from '@/services/perfil.service';
 
-const trocarSenhaSchema = z
+const schema = z
   .object({
-    senhaAtual: z.string().min(1, 'Informe sua senha atual.'),
-    novaSenha: z
+    senhaAtual:   z.string().min(1, 'Informe a senha atual.'),
+    novaSenha:    z
       .string()
-      .min(8, 'A nova senha deve ter no minimo 8 caracteres.')
-      .regex(/[A-Z]/, 'A nova senha deve conter ao menos 1 letra maiuscula.')
-      .regex(/[0-9]/, 'A nova senha deve conter ao menos 1 numero.'),
-    confirmarNovaSenha: z.string().min(1, 'Confirme a nova senha.'),
+      .min(8, 'A nova senha deve ter no mínimo 8 caracteres.')
+      .regex(/[A-Z]/, 'A nova senha deve conter ao menos 1 letra maiúscula.')
+      .regex(/[0-9]/, 'A nova senha deve conter ao menos 1 número.'),
+    confirmarSenha: z.string().min(1, 'Confirme a nova senha.'),
   })
-  .refine((values) => values.novaSenha === values.confirmarNovaSenha, {
-    path: ['confirmarNovaSenha'],
-    message: 'As senhas nao conferem.',
+  .refine((d) => d.novaSenha === d.confirmarSenha, {
+    message: 'As senhas não coincidem.',
+    path: ['confirmarSenha'],
   });
 
-type TrocarSenhaFormValues = z.infer<typeof trocarSenhaSchema>;
+type FormValues = z.infer<typeof schema>;
+
+const MAX_TENTATIVAS  = 3;
+const LOCKOUT_SECONDS = 30;
 
 export function TrocarSenhaForm() {
-  const [tentativasFalhas, setTentativasFalhas] = useState(0);
-  const [bloqueadoAte, setBloqueadoAte] = useState<number | null>(null);
-  const [agora, setAgora] = useState(Date.now());
+  const [tentativas, setTentativas]         = useState(0);
+  const [bloqueadoAte, setBloqueadoAte]     = useState<number | null>(null);
+  const [segundosRestantes, setSegundosRestantes] = useState(0);
 
-  const form = useForm<TrocarSenhaFormValues>({
-    resolver: zodResolver(trocarSenhaSchema),
-    defaultValues: {
-      senhaAtual: '',
-      novaSenha: '',
-      confirmarNovaSenha: '',
-    },
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { senhaAtual: '', novaSenha: '', confirmarSenha: '' },
   });
 
-  const isBloqueado = Boolean(bloqueadoAte && bloqueadoAte > agora);
-
+  // Countdown do bloqueio
   useEffect(() => {
-    if (!isBloqueado) {
-      return;
-    }
+    if (!bloqueadoAte) return;
 
-    const timer = setInterval(() => setAgora(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [isBloqueado]);
+    const interval = setInterval(() => {
+      const restante = Math.ceil((bloqueadoAte - Date.now()) / 1000);
+      if (restante <= 0) {
+        setBloqueadoAte(null);
+        setSegundosRestantes(0);
+        setTentativas(0);
+        clearInterval(interval);
+      } else {
+        setSegundosRestantes(restante);
+      }
+    }, 1000);
 
-  useEffect(() => {
-    if (!bloqueadoAte || bloqueadoAte <= Date.now()) {
-      return;
-    }
-
-    const timeoutMs = bloqueadoAte - Date.now();
-    const timeoutId = setTimeout(() => {
-      setTentativasFalhas(0);
-      setBloqueadoAte(null);
-      setAgora(Date.now());
-    }, timeoutMs);
-
-    return () => clearTimeout(timeoutId);
+    return () => clearInterval(interval);
   }, [bloqueadoAte]);
 
-  const segundosRestantes = useMemo(() => {
-    if (!isBloqueado || !bloqueadoAte) {
-      return 0;
-    }
+  const bloqueado = bloqueadoAte !== null && Date.now() < bloqueadoAte;
 
-    return Math.max(0, Math.ceil((bloqueadoAte - agora) / 1000));
-  }, [agora, bloqueadoAte, isBloqueado]);
+  const onSubmit = async (values: FormValues) => {
+    if (bloqueado) return;
 
-  const trocarSenhaMutation = useMutation({
-    mutationFn: (payload: { senhaAtual: string; novaSenha: string }) => trocarSenha(payload),
-    onSuccess: () => {
-      setTentativasFalhas(0);
-      setBloqueadoAte(null);
-      form.reset({ senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
-      toast.success('Senha alterada com sucesso.');
-    },
-    onError: () => {
-      const novasTentativas = tentativasFalhas + 1;
-      setTentativasFalhas(novasTentativas);
+    try {
+      const response = await fetch('/api/perfil/trocar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          senhaAtual: values.senhaAtual,
+          novaSenha:  values.novaSenha,
+        }),
+      });
 
-      if (novasTentativas >= 3) {
-        setBloqueadoAte(Date.now() + 30_000);
+      if (!response.ok) {
+        const novasTentativas = tentativas + 1;
+        setTentativas(novasTentativas);
+
+        if (novasTentativas >= MAX_TENTATIVAS) {
+          setBloqueadoAte(Date.now() + LOCKOUT_SECONDS * 1000);
+          setSegundosRestantes(LOCKOUT_SECONDS);
+          toast.error('Muitas tentativas incorretas. Aguarde 30 segundos.');
+        } else {
+          // Erro genérico — sem detalhes sobre o motivo
+          toast.error('Não foi possível alterar a senha. Verifique os dados e tente novamente.');
+        }
+        return;
       }
 
-      toast.error('Nao foi possivel alterar a senha. Verifique os dados e tente novamente.');
-    },
-  });
-
-  async function handleSubmit(values: TrocarSenhaFormValues) {
-    if (isBloqueado) {
-      return;
+      // Sucesso — limpa o formulário e zera tentativas
+      toast.success('Senha alterada com sucesso!');
+      form.reset();
+      setTentativas(0);
+    } catch {
+      toast.error('Erro de conexão. Tente novamente.');
     }
-
-    await trocarSenhaMutation.mutateAsync({
-      senhaAtual: values.senhaAtual,
-      novaSenha: values.novaSenha,
-    });
-  }
+  };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <div className="space-y-4 max-w-md">
         <FormField
           control={form.control}
           name="senhaAtual"
@@ -124,7 +115,7 @@ export function TrocarSenhaForm() {
             <FormItem>
               <FormLabel>Senha atual</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="current-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
+                <Input type="password" placeholder="••••••••" disabled={bloqueado} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -138,7 +129,7 @@ export function TrocarSenhaForm() {
             <FormItem>
               <FormLabel>Nova senha</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
+                <Input type="password" placeholder="Mín. 8 chars, 1 maiúscula, 1 número" disabled={bloqueado} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -147,28 +138,32 @@ export function TrocarSenhaForm() {
 
         <FormField
           control={form.control}
-          name="confirmarNovaSenha"
+          name="confirmarSenha"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Confirmar nova senha</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
+                <Input type="password" placeholder="••••••••" disabled={bloqueado} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {isBloqueado && (
-          <p className="text-sm text-amber-700">
-            Formulario bloqueado temporariamente. Tente novamente em {segundosRestantes}s.
+        {bloqueado && (
+          <p className="text-sm text-destructive">
+            Formulário bloqueado. Aguarde {segundosRestantes}s para tentar novamente.
           </p>
         )}
 
-        <Button type="submit" disabled={isBloqueado || trocarSenhaMutation.isPending}>
-          {trocarSenhaMutation.isPending ? 'Salvando...' : 'Alterar senha'}
+        <Button
+          onClick={form.handleSubmit(onSubmit)}
+          disabled={form.formState.isSubmitting || bloqueado}
+          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+        >
+          {form.formState.isSubmitting ? 'Salvando...' : 'Alterar senha'}
         </Button>
-      </form>
+      </div>
     </Form>
   );
 }

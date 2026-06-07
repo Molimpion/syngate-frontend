@@ -1,26 +1,24 @@
 import { apiFetch } from '@/lib/api';
 import { ReportFilters, DashboardReportResponse } from '@/types';
 
+function buildParams(filters: ReportFilters): string {
+  return new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(filters).filter(([, v]) => v !== undefined && v !== '')
+    ) as Record<string, string>
+  ).toString();
+}
+
 export const reportsService = {
   getDashboard: (filters: ReportFilters) => {
-    const params = new URLSearchParams(
-      Object.fromEntries(
-        Object.entries(filters).filter(([, v]) => v !== undefined)
-      ) as Record<string, string>
-    ).toString();
-    return apiFetch<{ data: DashboardReportResponse }>(`/reports/dashboard?${params}`);
+    const params = buildParams(filters);
+    return apiFetch<{ data: DashboardReportResponse }>(`/api/reports/dashboard?${params}`);
   },
 
   exportCSV: async (filters: ReportFilters) => {
-    const params = new URLSearchParams(
-      Object.fromEntries(
-        Object.entries(filters).filter(([, v]) => v !== undefined)
-      ) as Record<string, string>
-    ).toString();
+    const params = buildParams(filters);
 
-    // credentials: 'include' envia o cookie HttpOnly automaticamente
-    // NÃO lemos document.cookie — o cookie é httpOnly e inacessível ao JS
-    const response = await fetch(`/api/proxy/reports/export/csv?${params}`, {
+    const response = await fetch(`/api/reports/export/csv?${params}`, {
       credentials: 'include',
     });
 

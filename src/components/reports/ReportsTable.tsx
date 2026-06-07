@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,7 +15,10 @@ export function ReportsTable({ logs }: { logs: AccessLogDetail[] }) {
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
   const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Reset para página 1 quando os logs mudarem (novo filtro aplicado)
+  // Reseta para página 1 sempre que os logs mudarem (novo filtro aplicado)
+  useEffect(() => {
+    setPage(1);
+  }, [logs]);
 
   return (
     <div className="space-y-4">

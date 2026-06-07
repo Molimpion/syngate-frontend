@@ -1,75 +1,120 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { TrocarSenhaForm } from '@/components/perfil/TrocarSenhaForm';
-import { buscarPerfil } from '@/services/perfil.service';
-import { listarTurnos, type Turno } from '@/services/turnos.service';
+import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import type { PapelUsuario } from '@/types';
 
-function formatarData(data?: string | null) {
-  if (!data) return '-';
-  const parsed = new Date(data);
-  if (Number.isNaN(parsed.getTime())) return '-';
-  return new Intl.DateTimeFormat('pt-BR').format(parsed);
-}
-
-function InfoField({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value || '-'}</p>
-    </div>
-  );
+interface PerfilUsuario {
+  id: string;
+  nome: string;
+  email: string;
+  papel: PapelUsuario;
+  matricula?: string | null;
+  curso?: string | null;
+  turnoId?: string | null;
+  cartaoId?: string | null;
+  dataExpiracao?: string | null;
+  ativo: boolean;
+  emailVerificado: boolean;
+  criadoEm: string;
 }
 
 export default function PerfilPage() {
-  const perfilQuery = useQuery({
-    queryKey: ['perfil'],
-    queryFn: buscarPerfil,
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['perfil', 'me'],
+    queryFn: () => apiFetch<{ status: string; data: PerfilUsuario }>('/api/usuarios/me'),
+    staleTime: 60_000,
   });
 
-  const turnosQuery = useQuery({
-    queryKey: ['turnos-perfil'],
-    queryFn: () => listarTurnos({ page: 1, limit: 100 }),
-  });
-
-  const turnoNome = useMemo(() => {
-    const perfil = perfilQuery.data?.data;
-    const turnos: Turno[] = turnosQuery.data?.data ?? [];
-    if (!perfil?.turnoId) return '-';
-    return turnos.find((turno) => turno.id === perfil.turnoId)?.nome ?? '-';
-  }, [perfilQuery.data?.data, turnosQuery.data?.data]);
+  const usuario = data?.data;
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="p-6 md:p-8 max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Meu Perfil</h1>
+        <p className="text-sm text-muted-foreground">Visualize seus dados e gerencie sua senha.</p>
+      </div>
+
+      {/* Dados do perfil */}
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-foreground">Meu perfil</CardTitle>
+          <CardTitle className="text-foreground text-base">Dados da conta</CardTitle>
         </CardHeader>
         <CardContent>
-          {perfilQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando dados do perfil...</p>
-          ) : perfilQuery.isError || !perfilQuery.data?.data ? (
-            <p className="text-sm text-destructive">Não foi possível carregar seu perfil.</p>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : isError || !usuario ? (
+            <p className="text-sm text-destructive">Não foi possível carregar o perfil.</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <InfoField label="Nome"               value={perfilQuery.data.data.nome} />
-              <InfoField label="E-mail"             value={perfilQuery.data.data.email} />
-              <InfoField label="Papel"              value={perfilQuery.data.data.papel} />
-              <InfoField label="Matrícula"          value={perfilQuery.data.data.matricula} />
-              <InfoField label="Curso"              value={perfilQuery.data.data.curso} />
-              <InfoField label="Turno vinculado"    value={turnoNome} />
-              <InfoField label="Data de expiração"  value={formatarData(perfilQuery.data.data.dataExpiracao)} />
-              <InfoField label="UID do cartão RFID" value={perfilQuery.data.data.cartaoId} />
-            </div>
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Nome</dt>
+                <dd className="text-sm text-foreground font-medium">{usuario.nome}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">E-mail</dt>
+                <dd className="text-sm text-foreground">{usuario.email}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Papel</dt>
+                <dd>
+                  <Badge variant="outline" className="text-xs">{usuario.papel}</Badge>
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Matrícula</dt>
+                <dd className="text-sm text-foreground">{usuario.matricula || '—'}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Curso</dt>
+                <dd className="text-sm text-foreground">{usuario.curso || '—'}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Turno</dt>
+                <dd className="text-sm text-foreground">{usuario.turnoId || '—'}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Cartão RFID</dt>
+                <dd className="text-sm font-mono text-foreground">
+                  {usuario.cartaoId ? (
+                    <span className="bg-muted px-2 py-0.5 rounded text-xs">{usuario.cartaoId}</span>
+                  ) : (
+                    <span className="text-muted-foreground">Nenhum cartão vinculado</span>
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Expiração da conta</dt>
+                <dd className="text-sm text-foreground">
+                  {usuario.dataExpiracao
+                    ? format(new Date(usuario.dataExpiracao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                    : '—'}
+                </dd>
+              </div>
+            </dl>
           )}
         </CardContent>
       </Card>
 
+      <Separator />
+
+      {/* Troca de senha */}
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-foreground">Trocar senha</CardTitle>
+          <CardTitle className="text-foreground text-base">Alterar senha</CardTitle>
         </CardHeader>
         <CardContent>
           <TrocarSenhaForm />
