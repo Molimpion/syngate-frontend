@@ -8,7 +8,7 @@ export type PapelUsuario =
   | 'GESTOR'
   | 'VISITANTE';
 
-export type TipoDispositivo = 'CATRACA' | 'LEITOR_QR' | 'TOTEM';
+export type TipoDispositivo = 'CATRACA' | 'LEITOR_CARTAO';
 
 /** Status de um evento de acesso — deve bater com o enum do backend */
 export type TipoAcesso = 'CONCEDIDO' | 'NEGADO';
@@ -48,41 +48,20 @@ export interface AccessLog {
   salaNome?: string;
 }
 
-export interface ReportFilters {
-  dataInicio?: string;
-  dataFim?: string;
-  usuarioId?: string;
-  dispositivoId?: string;
-  status?: string;
-}
+export type StatusDispositivo = 'ATIVO' | 'INATIVO' | 'MANUTENCAO';
 
-export interface AccessLogDetail {
+export interface Device {
   id: string;
-  dataHora: string;
-  status: 'CONCEDIDO' | 'NEGADO';
-  finalidade: string;
-  direcao: 'ENTRADA' | 'SAIDA';
-  motivo?: string;
-  uidCartao: string;
-  usuario?: {
-    nome: string;
-    matricula: string;
-    papel: string;
-  };
-  dispositivo: {
-    nome: string;
-    sala: {
-      nome: string;
-      bloco?: string;
-    };
-  };
+  nome: string;
+  tipo: TipoDispositivo;
+  status: StatusDispositivo;
+  enderecoMac: string;
+  ipLocal?: string;
+  salaId: string;
 }
 
-export interface DashboardReportResponse {
-  resumo: {
-    totalAcessos: number;
-    porStatus: { status: string; _count: number }[];
-    porDirecao: { direcao: string; _count: number }[];
-  };
-  detalhes: AccessLogDetail[];
+export interface Sala {
+  id: string;
+  nome: string;
+  bloco?: string;
 }
