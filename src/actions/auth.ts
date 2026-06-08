@@ -19,7 +19,7 @@ export async function loginAction(payload: LoginPayload) {
   try {
     const data = await apiFetch<LoginResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ email: payload.email, senhaLimpa: payload.senha }),
     });
 
     const token = data?.data?.accessToken;
