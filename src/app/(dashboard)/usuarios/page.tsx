@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -16,7 +17,7 @@ import { inativarUsuario, listarUsuarios, reativarUsuario, type Usuario } from '
 
 const PAGE_SIZE = 10;
 
-export default function UsuariosPage() {
+function UsuariosContent() {
   const queryClient = useQueryClient();
   const { session, isLoading } = useSession();
   
@@ -24,17 +25,14 @@ export default function UsuariosPage() {
   const pathname = usePathname();
   const { replace } = useRouter();
 
-  // Lê os parâmetros diretamente da URL
   const pageParam = searchParams.get('page');
   const qParam = searchParams.get('q');
 
   const page = pageParam ? parseInt(pageParam, 10) : 1;
   const debouncedSearch = qParam || '';
 
-  // Estado local apenas para manter a digitação fluida no Input
   const [inputValue, setInputValue] = useState(debouncedSearch);
 
-  // Debounce que atualiza a URL em vez do estado local
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -43,11 +41,9 @@ export default function UsuariosPage() {
       } else {
         params.delete('q');
       }
-      // Se a busca mudar e já existir um termo, volta para a página 1
       if (inputValue.trim() !== debouncedSearch) {
         params.set('page', '1'); 
       }
-      
       replace(`${pathname}?${params.toString()}`, { scroll: false });
     }, 300);
     return () => clearTimeout(timer);
@@ -82,7 +78,6 @@ export default function UsuariosPage() {
     },
   });
 
-  // Função para mudar de página alterando a URL
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', newPage.toString());
@@ -238,5 +233,13 @@ export default function UsuariosPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function UsuariosPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-muted-foreground">Carregando...</div>}>
+      <UsuariosContent />
+    </Suspense>
   );
 }
