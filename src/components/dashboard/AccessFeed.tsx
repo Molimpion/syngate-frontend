@@ -37,20 +37,20 @@ export function AccessFeed() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carrega histórico inicial via /reports/dashboard
+  // Carrega histórico inicial via /api/reports/dashboard
   useEffect(() => {
     setIsLoading(true);
-    apiFetch<{ resumo: unknown; detalhes: RawLog[] }>('/reports/dashboard')
-      .then((res) => setLogs((res.detalhes ?? []).map(rawToAccessLog)))
+    apiFetch<{ data: { detalhes: RawLog[]; resumo: unknown } }>('/api/reports/dashboard')
+      .then((res) => setLogs((res.data?.detalhes ?? []).map(rawToAccessLog)))
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
 
-  // Novos eventos em tempo real
+  // Novos eventos em tempo real — backend emite RawLog, precisa mapear
   useEffect(() => {
     if (!socket) return;
-    const handleNewAccess = (newLog: AccessLog) => {
-      setLogs((prev) => [newLog, ...prev].slice(0, 50));
+    const handleNewAccess = (newLog: RawLog) => {
+      setLogs((prev) => [rawToAccessLog(newLog), ...prev].slice(0, 50));
       setPage(1);
     };
     socket.on('access:new', handleNewAccess);
@@ -82,7 +82,7 @@ export function AccessFeed() {
               >
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-foreground">
-                    {log.usuarioNome || 'Usuário Desconhecido'}
+                    {log.usuarioNome || 'Cartão Desconhecido'}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(log.horario).toLocaleString('pt-BR')}
