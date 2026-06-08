@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 // Rotas públicas que não precisam de autenticação
 const PUBLIC_PATHS = ['/login', '/verificar-email'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Permite rotas públicas e assets

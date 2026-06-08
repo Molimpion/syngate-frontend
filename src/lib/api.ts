@@ -1,7 +1,7 @@
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const isServer = typeof window === 'undefined';
   const isInternalApiRoute = endpoint.startsWith('/api/');
-  const baseUrl = isInternalApiRoute ? '' : isServer ? process.env.API_URL : '/api/proxy';
+  const baseUrl = isInternalApiRoute ? '' : isServer ? process.env.API_URL : '/api';
   
   const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,

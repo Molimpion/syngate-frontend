@@ -94,8 +94,15 @@ src/
         page.tsx
       layout.tsx
     api/
+      devices/
+        [...slug]/
+          route.ts
+        route.ts
       perfil/
         trocar-senha/
+          route.ts
+      reports/
+        [...path]/
           route.ts
       salas/
         [...path]/
@@ -161,6 +168,7 @@ src/
     providers.tsx
   services/
     devices.service.ts
+    logs.service.ts
     perfil.service.ts
     reports.service.ts
     salas.service.ts
@@ -173,7 +181,7 @@ src/
     index.ts
   utils/
     time.ts
-  middleware.ts
+  proxy.ts
 .commitlintrc.json
 .gitignore
 components.json
@@ -189,6 +197,160 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/app/api/devices/[...slug]/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+function buildTargetUrl(req: NextRequest, slug: string[]) {
+  const baseUrl = process.env.API_URL;
+  if (!baseUrl) throw new Error('API_URL não configurada.');
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const suffix = slug.length > 0 ? `/${slug.join('/')}` : '';
+  const target = new URL(`${cleanedBase}/devices${suffix}`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+  return target.toString();
+}
+
+async function handle(req: NextRequest, slug: string[]) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req, slug);
+    const headers: HeadersInit = { Accept: 'application/json' };
+    const contentType = req.headers.get('content-type');
+    if (contentType) headers['Content-Type'] = contentType;
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const ct = response.headers.get('content-type');
+    if (ct) nextHeaders.set('content-type', ct);
+
+    return new NextResponse(responseText, { status: response.status, headers: nextHeaders });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de devices.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug = [] } = await context.params;
+  return handle(req, slug);
+}
+export async function POST(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug = [] } = await context.params;
+  return handle(req, slug);
+}
+export async function PUT(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug = [] } = await context.params;
+  return handle(req, slug);
+}
+export async function PATCH(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug = [] } = await context.params;
+  return handle(req, slug);
+}
+export async function DELETE(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug = [] } = await context.params;
+  return handle(req, slug);
+}
+</file>
+
+<file path="src/app/api/devices/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+function buildTargetUrl(req: NextRequest) {
+  const baseUrl = process.env.API_URL;
+  if (!baseUrl) throw new Error('API_URL não configurada.');
+  const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const target = new URL(`${cleanedBase}/devices`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+  return target.toString();
+}
+
+async function handle(req: NextRequest) {
+  try {
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const targetUrl = buildTargetUrl(req);
+    const headers: HeadersInit = { Accept: 'application/json' };
+    const contentType = req.headers.get('content-type');
+    if (contentType) headers['Content-Type'] = contentType;
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
+    });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const ct = response.headers.get('content-type');
+    if (ct) nextHeaders.set('content-type', ct);
+
+    return new NextResponse(responseText, { status: response.status, headers: nextHeaders });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de devices.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) { return handle(req); }
+export async function POST(req: NextRequest) { return handle(req); }
+</file>
+
+<file path="src/proxy.ts">
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// Rotas públicas que não precisam de autenticação
+const PUBLIC_PATHS = ['/login', '/verificar-email'];
+
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Permite rotas públicas e assets
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Permite rotas de API internas (proxy para o backend)
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
+  // Todas as demais rotas exigem autenticação
+  const token = request.cookies.get('syngate_token')?.value;
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  // Aplica o middleware em todas as rotas exceto arquivos estáticos
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)'],
+};
+</file>
 
 <file path=".husky/commit-msg">
 npx --no -- commitlint --edit "$1"
@@ -279,72 +441,60 @@ export default function VerificarEmailPage() {
 }
 </file>
 
-<file path="src/app/api/perfil/trocar-senha/route.ts">
+<file path="src/app/api/reports/[...path]/route.ts">
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 const TOKEN_COOKIE = 'syngate_token';
 
-function buildCandidates(baseUrl: string) {
+function buildTargetUrl(req: NextRequest, path: string[]) {
+  const baseUrl = process.env.API_URL;
+  if (!baseUrl) throw new Error('API_URL não configurada.');
   const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-  return [
-    `${cleanedBase}/auth/trocar-senha`,
-    `${cleanedBase}/auth/change-password`,
-    `${cleanedBase}/users/me/password`,
-  ];
+  const suffix = path.length > 0 ? `/${path.join('/')}` : '';
+  const target = new URL(`${cleanedBase}/reports${suffix}`);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+  return target.toString();
 }
 
-export async function POST(req: NextRequest) {
+async function handle(req: NextRequest, path: string[]) {
   try {
-    const baseUrl = process.env.API_URL;
-    if (!baseUrl) {
-      throw new Error('API_URL nao configurada no ambiente.');
-    }
-
     const token = (await cookies()).get(TOKEN_COOKIE)?.value;
-    const body = await req.text();
-    const candidates = buildCandidates(baseUrl);
+    const targetUrl = buildTargetUrl(req, path);
+    const headers: HeadersInit = { Accept: 'application/json' };
+    const contentType = req.headers.get('content-type');
+    if (contentType) headers['Content-Type'] = contentType;
+    if (token) headers.Authorization = `Bearer ${token}`;
 
-    let lastResponse: Response | null = null;
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
 
-    for (const targetUrl of candidates) {
-      const response = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body,
-        cache: 'no-store',
-      });
-
-      if (response.status === 404) {
-        lastResponse = response;
-        continue;
-      }
-
-      const text = await response.text();
-      return new NextResponse(text, {
-        status: response.status,
-        headers: {
-          'content-type': response.headers.get('content-type') ?? 'application/json',
-        },
-      });
-    }
-
-    const lastText = lastResponse ? await lastResponse.text() : JSON.stringify({ status: 'error', message: 'Endpoint nao encontrado.' });
-    return new NextResponse(lastText, {
-      status: 404,
-      headers: {
-        'content-type': 'application/json',
-      },
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body: hasBody ? await req.text() : undefined,
+      cache: 'no-store',
     });
+
+    const responseText = await response.text();
+    const nextHeaders = new Headers();
+    const ct = response.headers.get('content-type');
+    if (ct) nextHeaders.set('content-type', ct);
+
+    return new NextResponse(responseText, { status: response.status, headers: nextHeaders });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erro inesperado ao trocar senha.';
+    const message = error instanceof Error ? error.message : 'Erro inesperado no proxy de reports.';
     return NextResponse.json({ status: 'error', message }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
+}
+export async function POST(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await context.params;
+  return handle(req, path);
 }
 </file>
 
@@ -517,64 +667,6 @@ export async function POST(req: NextRequest) {
 }
 </file>
 
-<file path="src/components/dashboard/AccessChart.tsx">
-'use client';
-
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { useQuery } from '@tanstack/react-query';
-import { reportsService } from '@/services/reports.service';
-
-export function AccessChart() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['reports', 'chartData'],
-    queryFn: () => reportsService.getDashboard({}), // Pega um apanhado geral
-    staleTime: 5 * 60 * 1000,
-  });
-
-  if (isLoading) return <div className="h-[300px] flex items-center justify-center text-slate-400">Carregando gráfico...</div>;
-
-  // Transforma os dados brutos de logs em um agrupamento por dia para o Recharts
-  const logs = data?.data?.detalhes || [];
-  
-  interface ChartDataPoint {
-    name: string;
-    CONCEDIDO: number;
-    NEGADO: number;
-  }
-  
-  const chartData = logs.reduce((acc: ChartDataPoint[], log) => {
-    const dateObj = new Date(log.dataHora);
-    const day = dateObj.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
-    
-    const existing = acc.find((item) => item.name === day);
-    if (existing) {
-      existing[log.status as keyof Omit<ChartDataPoint, 'name'>] += 1;
-    } else {
-      acc.push({ name: day, CONCEDIDO: log.status === 'CONCEDIDO' ? 1 : 0, NEGADO: log.status === 'NEGADO' ? 1 : 0 });
-    }
-    return acc;
-  }, []).reverse().slice(0, 7); // Últimos 7 dias
-
-  return (
-    <div className="h-[300px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-          <Tooltip 
-            cursor={{ fill: '#f1f5f9' }} 
-            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-          />
-          <Bar dataKey="CONCEDIDO" name="Acessos Liberados" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
-          <Bar dataKey="NEGADO" name="Acessos Bloqueados" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-</file>
-
 <file path="src/components/dashboard/StatsCards.tsx">
 'use client';
 
@@ -605,183 +697,6 @@ export function StatsCards() {
         <CardContent><div className="text-2xl font-bold">{data?.dispositivosAtivos || 0}</div></CardContent>
       </Card>
     </div>
-  );
-}
-</file>
-
-<file path="src/components/perfil/TrocarSenhaForm.tsx">
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
-import { z } from 'zod';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { trocarSenha } from '@/services/perfil.service';
-
-const trocarSenhaSchema = z
-  .object({
-    senhaAtual: z.string().min(1, 'Informe sua senha atual.'),
-    novaSenha: z
-      .string()
-      .min(8, 'A nova senha deve ter no minimo 8 caracteres.')
-      .regex(/[A-Z]/, 'A nova senha deve conter ao menos 1 letra maiuscula.')
-      .regex(/[0-9]/, 'A nova senha deve conter ao menos 1 numero.'),
-    confirmarNovaSenha: z.string().min(1, 'Confirme a nova senha.'),
-  })
-  .refine((values) => values.novaSenha === values.confirmarNovaSenha, {
-    path: ['confirmarNovaSenha'],
-    message: 'As senhas nao conferem.',
-  });
-
-type TrocarSenhaFormValues = z.infer<typeof trocarSenhaSchema>;
-
-export function TrocarSenhaForm() {
-  const [tentativasFalhas, setTentativasFalhas] = useState(0);
-  const [bloqueadoAte, setBloqueadoAte] = useState<number | null>(null);
-  const [agora, setAgora] = useState(Date.now());
-
-  const form = useForm<TrocarSenhaFormValues>({
-    resolver: zodResolver(trocarSenhaSchema),
-    defaultValues: {
-      senhaAtual: '',
-      novaSenha: '',
-      confirmarNovaSenha: '',
-    },
-  });
-
-  const isBloqueado = Boolean(bloqueadoAte && bloqueadoAte > agora);
-
-  useEffect(() => {
-    if (!isBloqueado) {
-      return;
-    }
-
-    const timer = setInterval(() => setAgora(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [isBloqueado]);
-
-  useEffect(() => {
-    if (!bloqueadoAte || bloqueadoAte <= Date.now()) {
-      return;
-    }
-
-    const timeoutMs = bloqueadoAte - Date.now();
-    const timeoutId = setTimeout(() => {
-      setTentativasFalhas(0);
-      setBloqueadoAte(null);
-      setAgora(Date.now());
-    }, timeoutMs);
-
-    return () => clearTimeout(timeoutId);
-  }, [bloqueadoAte]);
-
-  const segundosRestantes = useMemo(() => {
-    if (!isBloqueado || !bloqueadoAte) {
-      return 0;
-    }
-
-    return Math.max(0, Math.ceil((bloqueadoAte - agora) / 1000));
-  }, [agora, bloqueadoAte, isBloqueado]);
-
-  const trocarSenhaMutation = useMutation({
-    mutationFn: (payload: { senhaAtual: string; novaSenha: string }) => trocarSenha(payload),
-    onSuccess: () => {
-      setTentativasFalhas(0);
-      setBloqueadoAte(null);
-      form.reset({ senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
-      toast.success('Senha alterada com sucesso.');
-    },
-    onError: () => {
-      const novasTentativas = tentativasFalhas + 1;
-      setTentativasFalhas(novasTentativas);
-
-      if (novasTentativas >= 3) {
-        setBloqueadoAte(Date.now() + 30_000);
-      }
-
-      toast.error('Nao foi possivel alterar a senha. Verifique os dados e tente novamente.');
-    },
-  });
-
-  async function handleSubmit(values: TrocarSenhaFormValues) {
-    if (isBloqueado) {
-      return;
-    }
-
-    await trocarSenhaMutation.mutateAsync({
-      senhaAtual: values.senhaAtual,
-      novaSenha: values.novaSenha,
-    });
-  }
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="senhaAtual"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Senha atual</FormLabel>
-              <FormControl>
-                <Input type="password" autoComplete="current-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="novaSenha"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nova senha</FormLabel>
-              <FormControl>
-                <Input type="password" autoComplete="new-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="confirmarNovaSenha"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirmar nova senha</FormLabel>
-              <FormControl>
-                <Input type="password" autoComplete="new-password" disabled={isBloqueado || trocarSenhaMutation.isPending} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {isBloqueado && (
-          <p className="text-sm text-amber-700">
-            Formulario bloqueado temporariamente. Tente novamente em {segundosRestantes}s.
-          </p>
-        )}
-
-        <Button type="submit" disabled={isBloqueado || trocarSenhaMutation.isPending}>
-          {trocarSenhaMutation.isPending ? 'Salvando...' : 'Alterar senha'}
-        </Button>
-      </form>
-    </Form>
   );
 }
 </file>
@@ -2003,17 +1918,19 @@ export function SoftDeleteDialog({ usuarioNome, disabled, onConfirm }: SoftDelet
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 
+interface DashboardStats {
+  totalAcessos: number;
+  concedidos: number;
+  negados: number;
+  dispositivosAtivos: number;
+}
+
 export function useDashboardStats() {
   return useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: () => apiFetch<{ 
-      totalAcessos: number; 
-      concedidos: number; 
-      negados: number; 
-      dispositivosAtivos: number 
-    }>('/reports/stats'),
-    staleTime: 60000,
-    refetchInterval: 60000,
+    queryFn: () =>
+  apiFetch<{ status: string; data: DashboardStats }>('/reports/stats')
+    .then((res) => res.data),
   });
 }
 </file>
@@ -2086,6 +2003,42 @@ export const DevicesService = {
   atualizar: (id: string, data: Partial<Device>) => apiFetch(`/devices/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   provisionar: (id: string) => apiFetch<{ data: { rawKey: string } }>(`/devices/${id}/provision`, { method: 'POST' }),
   listarSalas: () => apiFetch<{ data: Sala[] }>('/rooms?limit=100'),
+};
+</file>
+
+<file path="src/services/logs.service.ts">
+import { apiFetch } from '@/lib/api';
+import { AccessLogDetail, ReportFilters } from '@/types';
+
+export interface LogsResponse {
+  status: 'success' | 'error';
+  data: {
+    resumo: {
+      totalAcessos: number;
+      porStatus: { status: string; _count: number }[];
+      porDirecao: { direcao: string; _count: number }[];
+    };
+    detalhes: AccessLogDetail[];
+  };
+}
+
+export interface ListarLogsParams extends ReportFilters {
+  page?: number;
+  limit?: number;
+}
+
+export const logsService = {
+  listar: (params: ListarLogsParams = {}): Promise<LogsResponse> => {
+    const searchParams = new URLSearchParams();
+
+    if (params.dataInicio)    searchParams.set('dataInicio', params.dataInicio);
+    if (params.dataFim)       searchParams.set('dataFim', params.dataFim);
+    if (params.status)        searchParams.set('status', params.status);
+    if (params.usuarioId)     searchParams.set('usuarioId', params.usuarioId);
+    if (params.dispositivoId) searchParams.set('dispositivoId', params.dispositivoId);
+
+    return apiFetch<LogsResponse>(`/api/reports/dashboard?${searchParams.toString()}`);
+  },
 };
 </file>
 
@@ -2452,168 +2405,6 @@ export async function getSessionAction(): Promise<JwtPayload | null> {
 export async function logoutAction() {
   (await cookies()).delete(COOKIE_NAME);
   redirect('/login');
-}
-</file>
-
-<file path="src/app/(dashboard)/perfil/page.tsx">
-'use client';
-
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrocarSenhaForm } from '@/components/perfil/TrocarSenhaForm';
-import { buscarPerfil } from '@/services/perfil.service';
-import { listarTurnos, type Turno } from '@/services/turnos.service';
-
-function formatarData(data?: string | null) {
-  if (!data) return '-';
-  const parsed = new Date(data);
-  if (Number.isNaN(parsed.getTime())) return '-';
-  return new Intl.DateTimeFormat('pt-BR').format(parsed);
-}
-
-function InfoField({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value || '-'}</p>
-    </div>
-  );
-}
-
-export default function PerfilPage() {
-  const perfilQuery = useQuery({
-    queryKey: ['perfil'],
-    queryFn: buscarPerfil,
-  });
-
-  const turnosQuery = useQuery({
-    queryKey: ['turnos-perfil'],
-    queryFn: () => listarTurnos({ page: 1, limit: 100 }),
-  });
-
-  const turnoNome = useMemo(() => {
-    const perfil = perfilQuery.data?.data;
-    const turnos: Turno[] = turnosQuery.data?.data ?? [];
-    if (!perfil?.turnoId) return '-';
-    return turnos.find((turno) => turno.id === perfil.turnoId)?.nome ?? '-';
-  }, [perfilQuery.data?.data, turnosQuery.data?.data]);
-
-  return (
-    <div className="space-y-6 p-6 md:p-8">
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground">Meu perfil</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {perfilQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando dados do perfil...</p>
-          ) : perfilQuery.isError || !perfilQuery.data?.data ? (
-            <p className="text-sm text-destructive">Não foi possível carregar seu perfil.</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <InfoField label="Nome"               value={perfilQuery.data.data.nome} />
-              <InfoField label="E-mail"             value={perfilQuery.data.data.email} />
-              <InfoField label="Papel"              value={perfilQuery.data.data.papel} />
-              <InfoField label="Matrícula"          value={perfilQuery.data.data.matricula} />
-              <InfoField label="Curso"              value={perfilQuery.data.data.curso} />
-              <InfoField label="Turno vinculado"    value={turnoNome} />
-              <InfoField label="Data de expiração"  value={formatarData(perfilQuery.data.data.dataExpiracao)} />
-              <InfoField label="UID do cartão RFID" value={perfilQuery.data.data.cartaoId} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground">Trocar senha</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TrocarSenhaForm />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-</file>
-
-<file path="src/app/(dashboard)/reports/page.tsx">
-'use client';
-
-import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { DownloadCloud } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { reportsService } from '@/services/reports.service';
-import { ReportsFilter } from '@/components/reports/ReportsFilter';
-import { ReportsTable } from '@/components/reports/ReportsTable';
-import { toast } from 'sonner';
-
-function ReportsContent() {
-  const searchParams = useSearchParams();
-  const [isExporting, setIsExporting] = useState(false);
-
-  const filters = {
-    dataInicio:    searchParams.get('dataInicio')    || undefined,
-    dataFim:       searchParams.get('dataFim')       || undefined,
-    status:        searchParams.get('status')        || undefined,
-    usuarioId:     searchParams.get('usuarioId')     || undefined,
-    dispositivoId: searchParams.get('dispositivoId') || undefined,
-  };
-
-  const { data, isLoading } = useQuery({
-    // filtros completos no queryKey — recarrega ao mudar qualquer filtro
-    queryKey: ['reports', filters],
-    queryFn: () => reportsService.getDashboard(filters),
-    staleTime: 5 * 60 * 1000, // 5 min — alinhado com TTL do Redis do backend
-  });
-
-  const handleExport = async () => {
-    setIsExporting(true);
-    toast.info('Iniciando download do CSV...');
-    try {
-      await reportsService.exportCSV(filters);
-      toast.success('Download concluído!');
-    } catch {
-      toast.error('Erro ao exportar arquivo.');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Relatórios e Auditoria</h1>
-        <Button
-          onClick={handleExport}
-          disabled={isExporting || isLoading || !data?.data?.detalhes?.length}
-          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
-        >
-          <DownloadCloud className="h-4 w-4 mr-2" />
-          {isExporting ? 'Gerando...' : 'Exportar CSV'}
-        </Button>
-      </div>
-
-      <ReportsFilter />
-
-      {isLoading ? (
-        <div className="text-center py-10 text-muted-foreground">Carregando logs...</div>
-      ) : (
-        <ReportsTable logs={data?.data?.detalhes || []} />
-      )}
-    </div>
-  );
-}
-
-export default function ReportsPage() {
-  return (
-    <Suspense fallback={<div className="p-6 text-muted-foreground">Carregando interface...</div>}>
-      <ReportsContent />
-    </Suspense>
-  );
 }
 </file>
 
@@ -3074,6 +2865,48 @@ export default function UsuariosPage() {
 }
 </file>
 
+<file path="src/app/api/perfil/trocar-senha/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const TOKEN_COOKIE = 'syngate_token';
+
+export async function POST(req: NextRequest) {
+  try {
+    const baseUrl = process.env.API_URL;
+    if (!baseUrl) {
+      throw new Error('API_URL não configurada no ambiente.');
+    }
+
+    const cleanedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const token = (await cookies()).get(TOKEN_COOKIE)?.value;
+    const body = await req.text();
+
+    const response = await fetch(`${cleanedBase}/auth/trocar-senha`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body,
+      cache: 'no-store',
+    });
+
+    const text = await response.text();
+    return new NextResponse(text, {
+      status: response.status,
+      headers: {
+        'content-type': response.headers.get('content-type') ?? 'application/json',
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro inesperado ao trocar senha.';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
+}
+</file>
+
 <file path="src/app/api/salas/[...path]/route.ts">
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
@@ -3431,6 +3264,83 @@ export default function Home() {
 }
 </file>
 
+<file path="src/components/dashboard/AccessChart.tsx">
+'use client';
+
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { reportsService } from '@/services/reports.service';
+import { subDays, format } from 'date-fns';
+
+export function AccessChart() {
+  // Passa os últimos 7 dias como filtro — evita puxar todo o histórico
+  const dataInicio = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+  const dataFim    = format(new Date(), 'yyyy-MM-dd');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['reports', 'chartData', dataInicio, dataFim],
+    queryFn: () => reportsService.getDashboard({ dataInicio, dataFim }),
+    staleTime: 5 * 60 * 1000,
+    gcTime:    5 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
+        Carregando gráfico...
+      </div>
+    );
+  }
+
+  const logs = data?.data?.detalhes ?? [];
+
+  interface ChartDataPoint {
+    name: string;
+    CONCEDIDO: number;
+    NEGADO: number;
+  }
+
+  // Agrupa por dia
+  const byDay = logs.reduce<Record<string, ChartDataPoint>>((acc, log) => {
+    const day = format(new Date(log.dataHora), 'dd/MM');
+    if (!acc[day]) acc[day] = { name: day, CONCEDIDO: 0, NEGADO: 0 };
+    acc[day][log.status as 'CONCEDIDO' | 'NEGADO'] += 1;
+    return acc;
+  }, {});
+
+  // Garante os 7 dias em ordem cronológica (mais antigo → mais recente)
+  // mesmo que não haja logs em algum dia
+  const chartData: ChartDataPoint[] = Array.from({ length: 7 }, (_, i) => {
+    const day = format(subDays(new Date(), 6 - i), 'dd/MM');
+    return byDay[day] ?? { name: day, CONCEDIDO: 0, NEGADO: 0 };
+  });
+
+  return (
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+          <XAxis
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#64748b' }}
+            dy={10}
+          />
+          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+          <Tooltip
+            cursor={{ fill: '#f1f5f9' }}
+            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+          />
+          <Bar dataKey="CONCEDIDO" name="Liberados"  stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
+          <Bar dataKey="NEGADO"    name="Bloqueados" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+</file>
+
 <file path="src/components/devices/RawKeyDisplay.tsx">
 'use client';
 
@@ -3493,275 +3403,174 @@ export function RawKeyDisplay({ rawKey, onClose }: Props) {
 }
 </file>
 
-<file path="src/components/reports/ReportsFilter.tsx">
+<file path="src/components/perfil/TrocarSenhaForm.tsx">
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { FilterX } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
-import { Device } from '@/types';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 
-interface UsuarioBasico {
-  id: string;
-  nome: string;
-}
+const schema = z
+  .object({
+    senhaAtual:   z.string().min(1, 'Informe a senha atual.'),
+    novaSenha:    z
+      .string()
+      .min(8, 'A nova senha deve ter no mínimo 8 caracteres.')
+      .regex(/[A-Z]/, 'A nova senha deve conter ao menos 1 letra maiúscula.')
+      .regex(/[0-9]/, 'A nova senha deve conter ao menos 1 número.'),
+    confirmarSenha: z.string().min(1, 'Confirme a nova senha.'),
+  })
+  .refine((d) => d.novaSenha === d.confirmarSenha, {
+    message: 'As senhas não coincidem.',
+    path: ['confirmarSenha'],
+  });
 
-const selectClass =
-  'flex h-8 w-full rounded-lg border border-input bg-background text-foreground px-2.5 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:border-ring';
+type FormValues = z.infer<typeof schema>;
 
-export function ReportsFilter() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [usuarios, setUsuarios] = useState<UsuarioBasico[]>([]);
-  const [dispositivos, setDispositivos] = useState<Device[]>([]);
+const MAX_TENTATIVAS  = 3;
+const LOCKOUT_SECONDS = 30;
 
+export function TrocarSenhaForm() {
+  const [tentativas, setTentativas]         = useState(0);
+  const [bloqueadoAte, setBloqueadoAte]     = useState<number | null>(null);
+  const [segundosRestantes, setSegundosRestantes] = useState(0);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { senhaAtual: '', novaSenha: '', confirmarSenha: '' },
+  });
+
+  // Countdown do bloqueio
   useEffect(() => {
-    apiFetch<{ data: UsuarioBasico[] }>('/users?limit=200')
-      .then((res) => setUsuarios(res.data))
-      .catch(() => {});
+    if (!bloqueadoAte) return;
 
-    apiFetch<{ data: Device[] }>('/devices')
-      .then((res) => setDispositivos(res.data))
-      .catch(() => {});
-  }, []);
+    const interval = setInterval(() => {
+      const restante = Math.ceil((bloqueadoAte - Date.now()) / 1000);
+      if (restante <= 0) {
+        setBloqueadoAte(null);
+        setSegundosRestantes(0);
+        setTentativas(0);
+        clearInterval(interval);
+      } else {
+        setSegundosRestantes(restante);
+      }
+    }, 1000);
 
-  const handleChange = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    router.push(`?${params.toString()}`);
-  };
+    return () => clearInterval(interval);
+  }, [bloqueadoAte]);
 
-  const clearFilters = () => {
-    router.push('/dashboard/reports');
+  const bloqueado = bloqueadoAte !== null && Date.now() < bloqueadoAte;
+
+  const onSubmit = async (values: FormValues) => {
+    if (bloqueado) return;
+
+    try {
+      const response = await fetch('/api/perfil/trocar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          senhaAtual: values.senhaAtual,
+          novaSenha:  values.novaSenha,
+        }),
+      });
+
+      if (!response.ok) {
+        const novasTentativas = tentativas + 1;
+        setTentativas(novasTentativas);
+
+        if (novasTentativas >= MAX_TENTATIVAS) {
+          setBloqueadoAte(Date.now() + LOCKOUT_SECONDS * 1000);
+          setSegundosRestantes(LOCKOUT_SECONDS);
+          toast.error('Muitas tentativas incorretas. Aguarde 30 segundos.');
+        } else {
+          // Erro genérico — sem detalhes sobre o motivo
+          toast.error('Não foi possível alterar a senha. Verifique os dados e tente novamente.');
+        }
+        return;
+      }
+
+      // Sucesso — limpa o formulário e zera tentativas
+      toast.success('Senha alterada com sucesso!');
+      form.reset();
+      setTentativas(0);
+    } catch {
+      toast.error('Erro de conexão. Tente novamente.');
+    }
   };
 
   return (
-    <div className="bg-card p-4 rounded-xl border border-border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
-
-      <div className="space-y-1.5 flex-1 min-w-[140px]">
-        <Label>Data Início</Label>
-        <Input
-          type="date"
-          value={searchParams.get('dataInicio') || ''}
-          onChange={(e) => handleChange('dataInicio', e.target.value)}
+    <Form {...form}>
+      <div className="space-y-4 max-w-md">
+        <FormField
+          control={form.control}
+          name="senhaAtual"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Senha atual</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="••••••••" disabled={bloqueado} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
 
-      <div className="space-y-1.5 flex-1 min-w-[140px]">
-        <Label>Data Fim</Label>
-        <Input
-          type="date"
-          value={searchParams.get('dataFim') || ''}
-          onChange={(e) => handleChange('dataFim', e.target.value)}
+        <FormField
+          control={form.control}
+          name="novaSenha"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nova senha</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Mín. 8 chars, 1 maiúscula, 1 número" disabled={bloqueado} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
 
-      <div className="space-y-1.5 flex-1 min-w-[140px]">
-        <Label>Usuário</Label>
-        <select
-          className={selectClass}
-          value={searchParams.get('usuarioId') || ''}
-          onChange={(e) => handleChange('usuarioId', e.target.value)}
-        >
-          <option value="">Todos</option>
-          {usuarios.map((u) => (
-            <option key={u.id} value={u.id}>{u.nome}</option>
-          ))}
-        </select>
-      </div>
+        <FormField
+          control={form.control}
+          name="confirmarSenha"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirmar nova senha</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="••••••••" disabled={bloqueado} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-      <div className="space-y-1.5 flex-1 min-w-[140px]">
-        <Label>Dispositivo</Label>
-        <select
-          className={selectClass}
-          value={searchParams.get('dispositivoId') || ''}
-          onChange={(e) => handleChange('dispositivoId', e.target.value)}
-        >
-          <option value="">Todos</option>
-          {dispositivos.map((d) => (
-            <option key={d.id} value={d.id}>{d.nome}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-1.5 flex-1 min-w-[120px]">
-        <Label>Status</Label>
-        <select
-          className={selectClass}
-          value={searchParams.get('status') || ''}
-          onChange={(e) => handleChange('status', e.target.value)}
-        >
-          <option value="">Todos</option>
-          <option value="CONCEDIDO">Concedido</option>
-          <option value="NEGADO">Negado</option>
-        </select>
-      </div>
-
-      <Button variant="outline" onClick={clearFilters} className="h-8 shrink-0">
-        <FilterX className="h-4 w-4 mr-2" /> Limpar
-      </Button>
-    </div>
-  );
-}
-</file>
-
-<file path="src/components/reports/ReportsTable.tsx">
-'use client';
-
-import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AccessLogDetail } from '@/types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const PAGE_SIZE = 20;
-
-export function ReportsTable({ logs }: { logs: AccessLogDetail[] }) {
-  const [page, setPage] = useState(1);
-
-  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
-  const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  // Reset para página 1 quando os logs mudarem (novo filtro aplicado)
-
-  return (
-    <div className="space-y-4">
-      {/* Tabela */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data/Hora</TableHead>
-              <TableHead>Usuário / UID</TableHead>
-              <TableHead>Sala / Dispositivo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Motivo</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                  Nenhum registro encontrado.
-                </TableCell>
-              </TableRow>
-            )}
-            {paginated.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell className="text-xs whitespace-nowrap text-foreground">
-                  {new Date(log.dataHora).toLocaleString('pt-BR')}
-                </TableCell>
-
-                <TableCell>
-                  {log.usuario ? (
-                    <div>
-                      <p className="font-semibold text-foreground">{log.usuario.nome}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {log.usuario.papel} • {log.usuario.matricula}
-                      </p>
-                    </div>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700"
-                    >
-                      Cartão Desconhecido ({log.uidCartao})
-                    </Badge>
-                  )}
-                </TableCell>
-
-                <TableCell>
-                  <p className="font-medium text-foreground">
-                    {log.dispositivo.sala.nome}{' '}
-                    {log.dispositivo.sala.bloco && `(${log.dispositivo.sala.bloco})`}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {log.dispositivo.nome} • {log.direcao}
-                  </p>
-                </TableCell>
-
-                <TableCell>
-                  <Badge
-                    className={
-                      log.status === 'CONCEDIDO'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-red-500 text-white'
-                    }
-                  >
-                    {log.status}
-                  </Badge>
-                </TableCell>
-
-                <TableCell
-                  className="text-xs max-w-[200px] truncate text-muted-foreground"
-                  title={log.motivo || '-'}
-                >
-                  {log.motivo || '-'}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Paginação */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-1">
-          <p className="text-sm text-muted-foreground">
-            Página {page} de {totalPages} · {logs.length} registros
+        {bloqueado && (
+          <p className="text-sm text-destructive">
+            Formulário bloqueado. Aguarde {segundosRestantes}s para tentar novamente.
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
+        )}
 
-            {/* Páginas numeradas — mostra até 5 */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-              .reduce<(number | 'ellipsis')[]>((acc, p, i, arr) => {
-                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('ellipsis');
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, i) =>
-                p === 'ellipsis' ? (
-                  <span key={`ellipsis-${i}`} className="text-muted-foreground px-1">…</span>
-                ) : (
-                  <Button
-                    key={p}
-                    variant={p === page ? 'default' : 'outline'}
-                    size="icon-sm"
-                    onClick={() => setPage(p as number)}
-                    className={p === page ? 'bg-[#004a99] text-white hover:bg-[#003d7d]' : ''}
-                  >
-                    {p}
-                  </Button>
-                )
-              )}
-
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+        <Button
+          onClick={form.handleSubmit(onSubmit)}
+          disabled={form.formState.isSubmitting || bloqueado}
+          className="bg-[#004a99] hover:bg-[#003d7d] text-white"
+        >
+          {form.formState.isSubmitting ? 'Salvando...' : 'Alterar senha'}
+        </Button>
+      </div>
+    </Form>
   );
 }
 </file>
@@ -4123,7 +3932,7 @@ export function UsuarioForm({ modo, usuarioId, valoresIniciais }: UsuarioFormPro
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const isServer = typeof window === 'undefined';
   const isInternalApiRoute = endpoint.startsWith('/api/');
-  const baseUrl = isInternalApiRoute ? '' : isServer ? process.env.API_URL : '/api/proxy';
+  const baseUrl = isInternalApiRoute ? '' : isServer ? process.env.API_URL : '/api';
   
   const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
@@ -4148,48 +3957,6 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
   if (response.status === 204) return {} as T;
   return response.json();
 }
-</file>
-
-<file path="src/services/reports.service.ts">
-import { apiFetch } from '@/lib/api';
-import { ReportFilters, DashboardReportResponse } from '@/types';
-
-export const reportsService = {
-  getDashboard: (filters: ReportFilters) => {
-    const params = new URLSearchParams(
-      Object.fromEntries(
-        Object.entries(filters).filter(([, v]) => v !== undefined)
-      ) as Record<string, string>
-    ).toString();
-    return apiFetch<{ data: DashboardReportResponse }>(`/reports/dashboard?${params}`);
-  },
-
-  exportCSV: async (filters: ReportFilters) => {
-    const params = new URLSearchParams(
-      Object.fromEntries(
-        Object.entries(filters).filter(([, v]) => v !== undefined)
-      ) as Record<string, string>
-    ).toString();
-
-    // credentials: 'include' envia o cookie HttpOnly automaticamente
-    // NÃO lemos document.cookie — o cookie é httpOnly e inacessível ao JS
-    const response = await fetch(`/api/proxy/reports/export/csv?${params}`, {
-      credentials: 'include',
-    });
-
-    if (!response.ok) throw new Error('Erro ao exportar CSV');
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio-acessos-${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  },
-};
 </file>
 
 <file path="src/services/salas.service.ts">
@@ -4907,6 +4674,292 @@ export default function DevicesPage() {
 }
 </file>
 
+<file path="src/app/(dashboard)/perfil/page.tsx">
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { TrocarSenhaForm } from '@/components/perfil/TrocarSenhaForm';
+import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import type { PapelUsuario } from '@/types';
+
+interface Turno {
+  id: string;
+  nome: string;
+}
+
+interface PerfilUsuario {
+  id: string;
+  nome: string;
+  email: string;
+  papel: PapelUsuario;
+  matricula?: string | null;
+  curso?: string | null;
+  turnoId?: string | null;
+  turno?: Turno | null;
+  cartaoId?: string | null;
+  dataExpiracao?: string | null;
+  ativo: boolean;
+  emailVerificado: boolean;
+  criadoEm: string;
+}
+
+export default function PerfilPage() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['perfil', 'me'],
+    queryFn: () => apiFetch<{ status: string; data: PerfilUsuario }>('/api/usuarios/me'),
+    staleTime: 60_000,
+  });
+
+  const usuario = data?.data;
+
+  const turnoNome = usuario?.turno?.nome ?? (usuario?.turnoId ? '...' : '—');
+
+  return (
+    <div className="p-6 md:p-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Meu Perfil</h1>
+        <p className="text-sm text-muted-foreground">Visualize seus dados e gerencie sua senha.</p>
+      </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground text-base">Dados da conta</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : isError || !usuario ? (
+            <p className="text-sm text-destructive">Não foi possível carregar o perfil.</p>
+          ) : (
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Nome</dt>
+                <dd className="text-sm text-foreground font-medium">{usuario.nome}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">E-mail</dt>
+                <dd className="text-sm text-foreground">{usuario.email}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Papel</dt>
+                <dd>
+                  <Badge variant="outline" className="text-xs">{usuario.papel}</Badge>
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Matrícula</dt>
+                <dd className="text-sm text-foreground">{usuario.matricula || '—'}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Curso</dt>
+                <dd className="text-sm text-foreground">{usuario.curso || '—'}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Turno</dt>
+                <dd className="text-sm text-foreground">{turnoNome}</dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Cartão RFID</dt>
+                <dd className="text-sm font-mono text-foreground">
+                  {usuario.cartaoId ? (
+                    <span className="bg-muted px-2 py-0.5 rounded text-xs">{usuario.cartaoId}</span>
+                  ) : (
+                    <span className="text-muted-foreground">Nenhum cartão vinculado</span>
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Expiração da conta</dt>
+                <dd className="text-sm text-foreground">
+                  {usuario.dataExpiracao
+                    ? format(new Date(usuario.dataExpiracao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                    : '—'}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Status</dt>
+                <dd>
+                  <Badge
+                    variant="outline"
+                    className={
+                      usuario.ativo
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'border-border bg-muted text-muted-foreground'
+                    }
+                  >
+                    {usuario.ativo ? 'Ativo' : 'Inativo'}
+                  </Badge>
+                </dd>
+              </div>
+            </dl>
+          )}
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground text-base">Alterar senha</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TrocarSenhaForm />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/(dashboard)/reports/page.tsx">
+"use client";
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Download, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ReportsFilter } from "@/components/reports/ReportsFilter";
+import { ReportsTable } from "@/components/reports/ReportsTable";
+import { reportsService } from "@/services/reports.service";
+import { useSession } from "@/hooks/useSession";
+import { ReportFilters } from "@/types";
+
+function ReportsContent() {
+  const searchParams = useSearchParams();
+  const { session, isLoading: isSessionLoading } = useSession();
+
+  const filters: ReportFilters = {
+    dataInicio: searchParams.get("dataInicio") || undefined,
+    dataFim: searchParams.get("dataFim") || undefined,
+    status: searchParams.get("status") || undefined,
+    usuarioId: searchParams.get("usuarioId") || undefined,
+    dispositivoId: searchParams.get("dispositivoId") || undefined,
+  };
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["reports", "dashboard", filters],
+    queryFn: () => reportsService.getDashboard(filters),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+
+  const canAccess =
+    session?.papel === "GESTOR" || session?.papel === "COORDENADOR";
+
+  if (isSessionLoading) {
+    return (
+      <div className="p-6 text-muted-foreground">Carregando sessão...</div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="p-6">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Acesso restrito</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground">
+            Seu perfil não possui permissão para acessar os relatórios.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleExportCSV = async () => {
+    try {
+      await reportsService.exportCSV(filters);
+    } catch {
+      toast.error("Não foi possível exportar o CSV.");
+    }
+  };
+
+  const logs = data?.data?.detalhes ?? [];
+
+  return (
+    <div className="p-6 md:p-8">
+      {/* Cabeçalho */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Relatórios de Acesso
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Filtre e exporte os logs de acesso registrados pelo sistema.
+          </p>
+        </div>
+        <Button
+          onClick={handleExportCSV}
+          className="bg-[#f47920] hover:bg-[#e8621a] text-white"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Exportar CSV
+        </Button>
+      </div>
+
+      <ReportsFilter />
+
+      {data?.data?.resumo && (
+        <div className="mb-4 flex flex-wrap gap-3">
+          <span className="text-sm text-muted-foreground">
+            Total:{" "}
+            <strong className="text-foreground">
+              {data.data.resumo.totalAcessos}
+            </strong>{" "}
+            acessos
+          </span>
+          {data.data.resumo.porStatus.map((s) => (
+            <span key={s.status} className="text-sm text-muted-foreground">
+              {s.status}:{" "}
+              <strong className="text-foreground">{s._count}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground py-12 justify-center">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Carregando registros...</span>
+        </div>
+      ) : isError ? (
+        <p className="text-sm text-destructive py-6">
+          Erro ao carregar os relatórios.
+        </p>
+      ) : (
+        <ReportsTable logs={logs} />
+      )}
+    </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-6 text-muted-foreground">Carregando...</div>}
+    >
+      <ReportsContent />
+    </Suspense>
+  );
+}
+</file>
+
 <file path="src/app/(dashboard)/salas/[id]/page.tsx">
 'use client';
 
@@ -5527,60 +5580,122 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 import { useEffect, useState } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import { apiFetch } from '@/lib/api';
 import { AccessLog } from '@/types';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 10;
+
+interface RawLog {
+  id: string;
+  dataHora: string;
+  status: 'CONCEDIDO' | 'NEGADO';
+  usuario?: { nome: string } | null;
+  dispositivo?: { sala?: { nome: string } | null } | null;
+}
+
+function rawToAccessLog(raw: RawLog): AccessLog {
+  return {
+    id: raw.id,
+    usuarioId: '',
+    salaId: '',
+    tipo: raw.status,
+    horario: raw.dataHora,
+    usuarioNome: raw.usuario?.nome ?? undefined,
+    salaNome: raw.dispositivo?.sala?.nome ?? undefined,
+  };
+}
 
 export function AccessFeed() {
   const { socket } = useSocket();
   const [logs, setLogs] = useState<AccessLog[]>([]);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Carrega histórico inicial via /reports/dashboard
+  useEffect(() => {
+    setIsLoading(true);
+    apiFetch<{ resumo: unknown; detalhes: RawLog[] }>('/reports/dashboard')
+      .then((res) => setLogs((res.detalhes ?? []).map(rawToAccessLog)))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  // Novos eventos em tempo real
   useEffect(() => {
     if (!socket) return;
-
     const handleNewAccess = (newLog: AccessLog) => {
       setLogs((prev) => [newLog, ...prev].slice(0, 50));
+      setPage(1);
     };
-
     socket.on('access:new', handleNewAccess);
-
-    return () => {
-      socket.off('access:new', handleNewAccess);
-    };
+    return () => { socket.off('access:new', handleNewAccess); };
   }, [socket]);
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const paginated  = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Carregando acessos...</p>;
+  }
 
   return (
     <div className="space-y-3">
       {logs.length === 0 ? (
-        <p className="text-sm text-slate-400">Aguardando novos acessos...</p>
+        <p className="text-sm text-muted-foreground">Nenhum acesso registrado.</p>
       ) : (
-        <AnimatePresence initial={false}>
-          {logs.map((log) => (
-            <motion.div
-              key={log.id}
-              initial={{ opacity: 0, y: -20, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              transition={{ duration: 0.3 }}
-              className="flex items-center justify-between p-3 bg-slate-50/50 rounded-lg border border-slate-100"
-            >
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-slate-800">
-                  {log.usuarioNome || 'Usuário Desconhecido'}
-                </span>
-                <span className="text-xs text-slate-500">
-                  {new Date(log.horario).toLocaleTimeString()} {log.salaNome && `- ${log.salaNome}`}
-                </span>
-              </div>
-              
-              <Badge 
-                variant={log.tipo === 'CONCEDIDO' ? 'default' : 'destructive'}
-                className={log.tipo === 'CONCEDIDO' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : ''}
+        <>
+          <AnimatePresence initial={false}>
+            {paginated.map((log) => (
+              <motion.div
+                key={log.id}
+                initial={{ opacity: 0, y: -12, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+                className="flex items-center justify-between p-3 bg-muted/40 rounded-lg border border-border"
               >
-                {log.tipo}
-              </Badge>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-foreground">
+                    {log.usuarioNome || 'Usuário Desconhecido'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(log.horario).toLocaleString('pt-BR')}
+                    {log.salaNome && ` · ${log.salaNome}`}
+                  </span>
+                </div>
+                <Badge
+                  className={
+                    log.tipo === 'CONCEDIDO'
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                      : 'bg-red-500 hover:bg-red-600 text-white'
+                  }
+                >
+                  {log.tipo}
+                </Badge>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-muted-foreground">
+                Página {page} de {totalPages} · {logs.length} registros
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="icon-sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon-sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -5771,6 +5886,285 @@ export function DeviceForm({ initialData }: DeviceFormProps) {
         </Button>
       </form>
     </Form>
+  );
+}
+</file>
+
+<file path="src/components/reports/ReportsFilter.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FilterX } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { Device } from '@/types';
+
+interface UsuarioBasico {
+  id: string;
+  nome: string;
+}
+
+const selectClass =
+  'flex h-8 w-full rounded-lg border border-input bg-background text-foreground px-2.5 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:border-ring';
+
+export function ReportsFilter() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [usuarios, setUsuarios] = useState<UsuarioBasico[]>([]);
+  const [dispositivos, setDispositivos] = useState<Device[]>([]);
+
+  useEffect(() => {
+    apiFetch<{ data: UsuarioBasico[] }>('/api/usuarios?limit=200')
+      .then((res) => setUsuarios(res.data))
+      .catch(() => {});
+
+    apiFetch<{ data: Device[] }>('/api/devices')
+      .then((res) => setDispositivos(res.data))
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    // Reseta para página 1 ao mudar filtro
+    params.delete('page');
+    router.push(`?${params.toString()}`);
+  };
+
+  const clearFilters = () => {
+    // Rota correta sem o prefixo /dashboard
+    router.push('/reports');
+  };
+
+  return (
+    <div className="bg-card p-4 rounded-xl border border-border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Data Início</Label>
+        <Input
+          type="date"
+          value={searchParams.get('dataInicio') || ''}
+          onChange={(e) => handleChange('dataInicio', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Data Fim</Label>
+        <Input
+          type="date"
+          value={searchParams.get('dataFim') || ''}
+          onChange={(e) => handleChange('dataFim', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Usuário</Label>
+        <select
+          className={selectClass}
+          value={searchParams.get('usuarioId') || ''}
+          onChange={(e) => handleChange('usuarioId', e.target.value)}
+        >
+          <option value="">Todos</option>
+          {usuarios.map((u) => (
+            <option key={u.id} value={u.id}>{u.nome}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[140px]">
+        <Label>Dispositivo</Label>
+        <select
+          className={selectClass}
+          value={searchParams.get('dispositivoId') || ''}
+          onChange={(e) => handleChange('dispositivoId', e.target.value)}
+        >
+          <option value="">Todos</option>
+          {dispositivos.map((d) => (
+            <option key={d.id} value={d.id}>{d.nome}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1.5 flex-1 min-w-[120px]">
+        <Label>Status</Label>
+        <select
+          className={selectClass}
+          value={searchParams.get('status') || ''}
+          onChange={(e) => handleChange('status', e.target.value)}
+        >
+          <option value="">Todos</option>
+          <option value="CONCEDIDO">Concedido</option>
+          <option value="NEGADO">Negado</option>
+        </select>
+      </div>
+
+      <Button variant="outline" onClick={clearFilters} className="h-8 shrink-0">
+        <FilterX className="h-4 w-4 mr-2" /> Limpar
+      </Button>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/reports/ReportsTable.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AccessLogDetail } from '@/types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 20;
+
+export function ReportsTable({ logs }: { logs: AccessLogDetail[] }) {
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reseta para página 1 sempre que os logs mudarem (novo filtro aplicado)
+  useEffect(() => {
+    setPage(1);
+  }, [logs]);
+
+  return (
+    <div className="space-y-4">
+      {/* Tabela */}
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data/Hora</TableHead>
+              <TableHead>Usuário / UID</TableHead>
+              <TableHead>Sala / Dispositivo</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Motivo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginated.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Nenhum registro encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+            {paginated.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell className="text-xs whitespace-nowrap text-foreground">
+                  {new Date(log.dataHora).toLocaleString('pt-BR')}
+                </TableCell>
+
+                <TableCell>
+                  {log.usuario ? (
+                    <div>
+                      <p className="font-semibold text-foreground">{log.usuario.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {log.usuario.papel} • {log.usuario.matricula}
+                      </p>
+                    </div>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700"
+                    >
+                      Cartão Desconhecido ({log.uidCartao})
+                    </Badge>
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  <p className="font-medium text-foreground">
+                    {log.dispositivo.sala.nome}{' '}
+                    {log.dispositivo.sala.bloco && `(${log.dispositivo.sala.bloco})`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {log.dispositivo.nome} • {log.direcao}
+                  </p>
+                </TableCell>
+
+                <TableCell>
+                  <Badge
+                    className={
+                      log.status === 'CONCEDIDO'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-red-500 text-white'
+                    }
+                  >
+                    {log.status}
+                  </Badge>
+                </TableCell>
+
+                <TableCell
+                  className="text-xs max-w-[200px] truncate text-muted-foreground"
+                  title={log.motivo || '-'}
+                >
+                  {log.motivo || '-'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm text-muted-foreground">
+            Página {page} de {totalPages} · {logs.length} registros
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            {/* Páginas numeradas — mostra até 5 */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce<(number | 'ellipsis')[]>((acc, p, i, arr) => {
+                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('ellipsis');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === 'ellipsis' ? (
+                  <span key={`ellipsis-${i}`} className="text-muted-foreground px-1">…</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={p === page ? 'default' : 'outline'}
+                    size="icon-sm"
+                    onClick={() => setPage(p as number)}
+                    className={p === page ? 'bg-[#004a99] text-white hover:bg-[#003d7d]' : ''}
+                  >
+                    {p}
+                  </Button>
+                )
+              )}
+
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 </file>
@@ -6206,6 +6600,46 @@ export function useSocket() {
 
   return { socket };
 }
+</file>
+
+<file path="src/services/reports.service.ts">
+import { apiFetch } from '@/lib/api';
+import { ReportFilters, DashboardReportResponse } from '@/types';
+
+function buildParams(filters: ReportFilters): string {
+  return new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(filters).filter(([, v]) => v !== undefined && v !== '')
+    ) as Record<string, string>
+  ).toString();
+}
+
+export const reportsService = {
+  getDashboard: (filters: ReportFilters) => {
+    const params = buildParams(filters);
+    return apiFetch<{ data: DashboardReportResponse }>(`/api/reports/dashboard?${params}`);
+  },
+
+  exportCSV: async (filters: ReportFilters) => {
+    const params = buildParams(filters);
+
+    const response = await fetch(`/api/reports/export/csv?${params}`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) throw new Error('Erro ao exportar CSV');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-acessos-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
+};
 </file>
 
 <file path="src/app/(dashboard)/dashboard/page.tsx">
@@ -6869,41 +7303,6 @@ export interface Sala {
 }
 </file>
 
-<file path="src/middleware.ts">
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-
-// Rotas públicas que não precisam de autenticação
-const PUBLIC_PATHS = ['/login', '/verificar-email'];
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Permite rotas públicas e assets
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
-  // Permite rotas de API internas (proxy para o backend)
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.next();
-  }
-
-  // Todas as demais rotas exigem autenticação
-  const token = request.cookies.get('syngate_token')?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  return NextResponse.next();
-}
-
-export const config = {
-  // Aplica o middleware em todas as rotas exceto arquivos estáticos
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)'],
-};
-</file>
-
 <file path="package.json">
 {
   "name": "syngate-frontend",
@@ -6991,7 +7390,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
     { name: 'Usuários',      href: '/usuarios',      icon: Users,     roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Turnos',        href: '/turnos',        icon: Clock3,    roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Salas',         href: '/salas',         icon: DoorOpen,  roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
-    { name: 'Dispositivos',  href: '/devices',       icon: Network,   roles: ['GESTOR'],                group: 'Administração' },
+    { name: 'Dispositivos',  href: '/devices',       icon: Network,   roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Relatórios',    href: '/reports',       icon: BarChart3, roles: ['GESTOR', 'COORDENADOR'], group: 'Administração' },
     { name: 'Configurações', href: '/configuracoes', icon: Settings2, roles: ['GESTOR'],                group: 'Administração' },
   ];
