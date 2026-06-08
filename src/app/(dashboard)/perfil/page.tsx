@@ -10,6 +10,11 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { PapelUsuario } from '@/types';
 
+interface Turno {
+  id: string;
+  nome: string;
+}
+
 interface PerfilUsuario {
   id: string;
   nome: string;
@@ -18,6 +23,7 @@ interface PerfilUsuario {
   matricula?: string | null;
   curso?: string | null;
   turnoId?: string | null;
+  turno?: Turno | null;
   cartaoId?: string | null;
   dataExpiracao?: string | null;
   ativo: boolean;
@@ -34,14 +40,15 @@ export default function PerfilPage() {
 
   const usuario = data?.data;
 
+  const turnoNome = usuario?.turno?.nome ?? (usuario?.turnoId ? '...' : '—');
+
   return (
-    <div className="p-6 md:p-8 max-w-3xl space-y-6">
+    <div className="p-6 md:p-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Meu Perfil</h1>
         <p className="text-sm text-muted-foreground">Visualize seus dados e gerencie sua senha.</p>
       </div>
 
-      {/* Dados do perfil */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-foreground text-base">Dados da conta</CardTitle>
@@ -52,7 +59,7 @@ export default function PerfilPage() {
           ) : isError || !usuario ? (
             <p className="text-sm text-destructive">Não foi possível carregar o perfil.</p>
           ) : (
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Nome</dt>
                 <dd className="text-sm text-foreground font-medium">{usuario.nome}</dd>
@@ -82,7 +89,7 @@ export default function PerfilPage() {
 
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Turno</dt>
-                <dd className="text-sm text-foreground">{usuario.turnoId || '—'}</dd>
+                <dd className="text-sm text-foreground">{turnoNome}</dd>
               </div>
 
               <div>
@@ -104,6 +111,22 @@ export default function PerfilPage() {
                     : '—'}
                 </dd>
               </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Status</dt>
+                <dd>
+                  <Badge
+                    variant="outline"
+                    className={
+                      usuario.ativo
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'border-border bg-muted text-muted-foreground'
+                    }
+                  >
+                    {usuario.ativo ? 'Ativo' : 'Inativo'}
+                  </Badge>
+                </dd>
+              </div>
             </dl>
           )}
         </CardContent>
@@ -111,7 +134,6 @@ export default function PerfilPage() {
 
       <Separator />
 
-      {/* Troca de senha */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-foreground text-base">Alterar senha</CardTitle>
