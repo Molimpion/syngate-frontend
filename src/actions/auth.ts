@@ -15,11 +15,11 @@ interface LoginResponse {
   };
 }
 
-export async function loginAction(payload: LoginPayload) {
+export async function loginAction(email: string, senha: string) {
   try {
     const data = await apiFetch<LoginResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: payload.email, senhaLimpa: payload.senha }),
+      body: JSON.stringify({ email, senhaLimpa: senha }),
     });
 
     const token = data?.data?.accessToken;

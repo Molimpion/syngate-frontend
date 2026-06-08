@@ -38,10 +38,10 @@ export default function LoginPage() {
   });
 
   async function onSubmit(data: LoginForm) {
-    const result = await loginAction(data);
-    if (result.success) router.push('/dashboard');
-    else toast.error(result.error);
-  }
+  const result = await loginAction(data.email, data.senha);
+  if (result.success) router.push('/dashboard');
+  else toast.error(result.error);
+}
 
   return (
     // bg-background cobre light (#fff) e dark (#0d1117)
