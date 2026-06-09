@@ -1,6 +1,6 @@
 # Syngate — Frontend Web
 
-**Repositório do Frontend da Aplicação Syngate**
+**Repositório do Frontend da Aplicação Syngate:**
 *Painel de Gestão Administrativa e Monitoramento de Acesso Físico*
 
 ---
