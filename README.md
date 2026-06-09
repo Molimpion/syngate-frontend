@@ -7,9 +7,6 @@
 
 *Projeto Integrador da Turma 43 da Faculdade Senac Pernambuco.*
 
-Com certeza. Quando copiamos direto da tela, alguns editores de texto ou plataformas acabam ignorando a sintaxe das imagens e puxando apenas o texto alternativo.
-
-Aqui está o código Markdown exato dessas três seções para você copiar e colar diretamente no seu `README.md`:
 
 ### Ecossistema e UI
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Shadcn UI](https://img.shields.io/badge/Shadcn_UI-000000?style=for-the-badge&logo=shadcnui&logoColor=white)
@@ -19,8 +16,6 @@ Aqui está o código Markdown exato dessas três seções para você copiar e co
 
 ### Ferramentas e Observabilidade
 ![Socket.io](https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white) ![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white) ![Recharts](https://img.shields.io/badge/Recharts-22B573?style=for-the-badge&logo=recharts&logoColor=white)
-
-```
 
 ---
 
