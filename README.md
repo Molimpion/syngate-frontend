@@ -19,7 +19,7 @@
 
 ---
 
-## 1. Visão Geral
+## Visão Geral
 
 Este repositório contém o código-fonte do painel web da aplicação **Syngate**. Ele serve como a interface principal para coordenadores e gestores administrarem usuários, dispositivos IoT, salas, turnos acadêmicos e monitorarem o fluxo de acessos físicos em tempo real.
 
@@ -27,7 +27,19 @@ O sistema foi desenvolvido utilizando o **Next.js (App Router)** e consome os da
 
 ---
 
-## 2. Arquitetura e Decisões de Segurança (BFF)
+## Ecossistema Syngate
+
+A aplicação está dividida em três componentes modulares e integrados. Navegue pelos repositórios para explorar cada camada do sistema:
+
+| Componente | Repositório | Escopo Técnico |
+|------------|-------------|----------------|
+| **API Backend** | [syngate-backend](https://github.com/Molimpion/syngate-backend) | API RESTful, regras de negócio (RBAC), WebSockets e persistência. |
+| **Frontend Web** | [syngate-frontend](https://github.com/Molimpion/syngate-frontend) | Interface administrativa, gráficos de consumo e monitoramento em tempo real. |
+| **Hardware IoT** | [syngate-iot](https://github.com/Molimpion/syngate-iot) | Firmware em C++ para ESP32, sensor ultrassônico e leitura segura de RFID. |
+
+---
+
+## Arquitetura e Decisões de Segurança (BFF)
 
 Para mitigar vulnerabilidades como XSS (Cross-Site Scripting) e roubo de tokens, esta aplicação implementa o padrão **BFF (Backend For Frontend)**.
 
@@ -54,7 +66,7 @@ src/
 
 ---
 
-## 3. Funcionalidades e Controle de Acesso (RBAC)
+## Funcionalidades e Controle de Acesso (RBAC)
 
 O menu de navegação e as rotas são protegidos ativamente com base no papel (`PapelUsuario`) decodificado no JWT:
 
@@ -70,7 +82,7 @@ O menu de navegação e as rotas são protegidos ativamente com base no papel (`
 
 ---
 
-## 4. Como Executar Localmente
+## Como Executar Localmente
 
 ### Pré-requisitos
 
@@ -80,6 +92,7 @@ O menu de navegação e as rotas são protegidos ativamente com base no papel (`
 ### Inicialização
 
 1. Clone o repositório
+  
 2. Instale as dependências:
 
 ```bash
@@ -112,7 +125,7 @@ A aplicação estará disponível em `http://localhost:3000`.
 
 ---
 
-## 5. Integração em Tempo Real (WebSocket)
+## Integração em Tempo Real (WebSocket)
 
 A comunicação em tempo real para alimentar o **Fluxo de Acessos** do Dashboard é feita através do hook customizado `useSocket.ts`.
 
@@ -122,7 +135,7 @@ A comunicação em tempo real para alimentar o **Fluxo de Acessos** do Dashboard
 
 ---
 
-## 6. Guias de Contribuição e Qualidade (DX)
+## Guias de Contribuição e Qualidade (DX)
 
 ### Padronização de Commits
 
@@ -140,6 +153,6 @@ A componentização visual segue a filosofia do **Shadcn UI** (presente na pasta
 
 ---
 
-## 7. Licença
+## Licença
 
 Este projeto está sob a Licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
